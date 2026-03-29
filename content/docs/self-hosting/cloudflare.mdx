@@ -1,0 +1,96 @@
+---
+title: Cloudflare Setup
+description: Configure Cloudflare SSL-for-SaaS for automatic custom domain TLS provisioning.
+---
+
+Cloudflare handles automatic TLS certificate provisioning for verified custom domains. This page covers both end-user domain verification and operator configuration.
+
+---
+
+## For Domain Owners (Users)
+
+### Step 1: Add Your Domain in Emberly
+
+1. Go to **Dashboard → Settings → Profile → Custom Domains**
+2. Click **"Add Domain"** and enter your subdomain (e.g., `files.example.com`)
+3. Your domain is created with status `awaiting_cname`
+
+### Step 2: Add a CNAME Record
+
+In your DNS panel (Cloudflare, Namecheap, GoDaddy, etc.):
+
+| Field | Value |
+|-------|-------|
+| Type | `CNAME` |
+| Name | `files` (or your subdomain) |
+| Target | `cname.embrly.ca` |
+| Proxy status | **DNS only** (gray cloud — not proxied) |
+| TTL | Auto or 300s |
+
+<Callout type="warn">
+  Set the record to **DNS only** (gray cloud) during verification. Cloudflare proxy (orange cloud) can interfere with SSL certificate issuance. You can enable proxying after your domain shows as `active`.
+</Callout>
+
+### Step 3: Verify
+
+Click **"Verify"** in the Emberly dashboard. Verification typically completes within a few minutes.
+
+If asked for **TXT ownership verification**, add the TXT record shown in the dashboard before verifying. This is sometimes required on first setup.
+
+### Step 4: Set as Primary (Optional)
+
+Once verified, you can set the domain as your **primary** domain so all your file URLs use it by default.
+
+---
+
+## For Self-Hosted Operators
+
+### Prerequisites
+
+- A Cloudflare account with a zone for your domain
+- **SSL-for-SaaS** enabled on your Cloudflare zone (contact Cloudflare Support if not available)
+- A Cloudflare API token with:
+  - `Zone: Read`
+  - `Custom Hostnames: Edit`
+
+### Environment Variables
+
+```env
+CLOUDFLARE_ZONE_ID="your_zone_id"
+CLOUDFLARE_ZONE_API_TOKEN="your_api_token"
+CNAME_TARGET="cname.yourdomain.com"
+```
+
+Configure a CNAME record in Cloudflare pointing `cname.yourdomain.com` to your app's hostname.
+
+### How It Works
+
+When a user clicks **Verify** in the dashboard:
+
+1. Emberly performs a DNS lookup to confirm the CNAME points to `CNAME_TARGET`
+2. If resolved, Emberly calls `createCustomHostname` on the Cloudflare Zone API
+3. Cloudflare begins SSL certificate provisioning
+4. Status is polled and persisted in `customDomain.cfMeta`
+5. Once `active`, file URLs for that user can use the custom domain
+
+### Troubleshooting
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `7003` / `7000` from Cloudflare | SSL-for-SaaS not enabled | Contact Cloudflare to enable it |
+| CNAME not resolving | DNS propagation in progress | Wait 5–10 minutes and retry |
+| Certificate stuck pending | Ownership TXT record missing | Add TXT record shown in `cfMeta.ownership_verification` |
+| Rate limited (429) | 10 verification attempts per 10 min | Wait before retrying |
+
+### Rate Limits and Backoff
+
+Emberly automatically applies exponential backoff with `cfBackoffCount` and `cfPauseUntil` fields to avoid hammering the Cloudflare API during failures. These values are persisted in the database for debugging.
+
+### Debugging cfMeta
+
+The `customDomain.cfMeta` column stores the full Cloudflare API response. Log or inspect this column to diagnose certificate issuance issues:
+
+```bash
+bunx prisma studio
+# → CustomDomain table → cfMeta column
+```

@@ -1,0 +1,128 @@
+---
+title: Tauri Desktop App
+description: The native cross-platform Emberly uploader for screenshots and file uploads.
+---
+
+The Emberly Screenshot Uploader is a native desktop application built with **Tauri v2** and **Rust**. It provides a fast, lightweight interface for capturing screenshots and uploading files directly from your desktop.
+
+## Architecture
+
+```
+React Frontend (TypeScript)
+        ↓ invoke()
+Rust Backend (Tauri)
+        ↓ HTTPS
+Emberly API (Next.js)
+```
+
+| Layer | Technology | Responsibilities |
+|-------|-----------|-----------------|
+| Frontend | React + TypeScript + Tailwind | UI, history, settings |
+| Backend | Rust + Tauri v2 + tokio | Screenshot capture, HTTP, file I/O |
+| API | Emberly REST API | Storage, auth, CDN |
+
+## Features
+
+- **Screenshot capture** — native OS screenshot with one click
+- **File upload** — drag-and-drop or file picker
+- **Upload history** — last 50 uploads with quick copy/open
+- **Settings modal** — configure API URL, token, visibility, and password
+- **Clipboard integration** — URLs copied automatically after upload
+- **Dark UI** — minimal, focused interface built with Tailwind CSS
+
+---
+
+## Installation
+
+### From Releases
+
+Download the latest release for your platform from the [GitHub Releases](https://github.com/EmberlyOSS/Website/releases) page:
+
+- **Windows** — `.msi` or `.exe` installer
+- **macOS** — `.dmg`
+- **Linux** — `.AppImage` or `.deb`
+
+### Build from Source
+
+**Prerequisites:**
+- Node.js 16+ and bun (or npm/yarn)
+- Rust 1.70+ — [install via rustup](https://rustup.rs/)
+- [Tauri system prerequisites](https://tauri.app/start/prerequisites/)
+
+```bash
+# Install dependencies
+bun install
+
+# Development (with hot reload)
+bun run tauri dev
+
+# Production build
+bun run tauri build
+# Output: src-tauri/target/release/
+```
+
+---
+
+## Configuration
+
+On first launch, click the **Settings ⚙️** icon:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| API URL | Your Emberly instance URL | `https://embrly.ca` |
+| Session Token | From browser cookies (see below) | — |
+| Visibility | Default upload visibility | `PUBLIC` |
+| Password | Default file password (optional) | — |
+
+### Getting Your Session Token
+
+1. Log in to your Emberly instance in a browser
+2. Open DevTools (`F12`) → **Application → Cookies**
+3. Find and copy `next-auth.session-token`
+4. Paste it into the Settings modal
+
+<Callout type="warn">
+  The session token grants full account access. Treat it like a password. It expires with your session — if uploads fail, refresh the token.
+</Callout>
+
+---
+
+## Frontend Structure
+
+```
+src/
+├── App.tsx                  # Tabbed interface (Capture / History / Settings)
+├── components/
+│   ├── UploadArea.tsx       # Screenshot capture & file upload UI
+│   ├── Settings.tsx         # Settings modal
+│   └── UploadHistory.tsx    # Recent uploads list
+├── config.ts                # localStorage helpers
+└── types.ts                 # TypeScript interfaces
+```
+
+## Rust Backend
+
+```
+src-tauri/src/lib.rs
+├── capture_screenshot()     # Native OS screenshot capture
+├── upload_file()            # Multipart upload to Emberly API
+└── get_system_info()        # System metadata
+```
+
+The Rust layer handles:
+- Native screen capture via OS APIs
+- Secure HTTPS with `reqwest`
+- Auto-detected MIME types
+- Temporary file cleanup
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Rust is required" | Install Rust: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Upload returns 401 | Refresh your session token from browser DevTools |
+| Blank screenshot | Grant screen recording permission in System Settings (macOS) |
+| Build fails on Linux | Install WebKit2GTK: `sudo apt install libwebkit2gtk-4.1-dev` |
+| Can't find binary after build | Check `src-tauri/target/release/` |

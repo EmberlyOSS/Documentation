@@ -1,0 +1,12 @@
+{
+  "title": "Integrations",
+  "pages": [
+    "index",
+    "sharex",
+    "flameshot",
+    "powershell",
+    "python-sdk",
+    "bash-scripting",
+    "tauri-uploader"
+  ]
+}

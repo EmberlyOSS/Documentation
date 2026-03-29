@@ -1,0 +1,97 @@
+---
+title: Quickstart
+description: A 5-minute quickstart for developers setting up the Emberly desktop uploader.
+---
+
+## Prerequisites
+
+- Node.js 16+ (with bun, npm, yarn, or pnpm)
+- Rust 1.70+ — [Install via rustup](https://rustup.rs/)
+- [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS
+
+## Installation
+
+```bash
+# 1. Navigate to the uploader directory
+cd uploader
+
+# 2. Install dependencies
+bun install
+
+# 3. Fetch Rust dependencies
+cargo fetch
+```
+
+## Development
+
+```bash
+bun run tauri dev
+```
+
+The application launches in a development window with hot module reloading.
+
+## Building
+
+```bash
+bun run tauri build
+# Binary will be in: src-tauri/target/release/
+```
+
+## First Run
+
+### 1. Configure Settings
+
+1. Click the **Settings** icon (⚙️) in the top right
+2. Enter your Emberly instance details:
+   - **API URL**: `https://embrly.ca`
+   - **Session Token**: Copy from your browser cookies after logging in
+3. Choose a default visibility and optional password
+4. Click **Save Settings**
+
+### 2. Get Your Session Token
+
+1. Open [embrly.ca](https://embrly.ca) and log in
+2. Open DevTools: `F12` or `Ctrl+Shift+I`
+3. Go to **Application → Cookies**
+4. Find and copy `next-auth.session-token`
+5. Paste it into the Settings modal
+
+<Callout type="warn" title="Keep your token private">
+  Your session token authenticates all uploads. Treat it like a password — never commit it to source control.
+</Callout>
+
+### 3. Test a Screenshot Upload
+
+1. Click **Capture Screenshot**
+2. Wait for the upload to complete
+3. Click **Copy** to copy the URL to clipboard
+
+### 4. Test File Upload
+
+1. Click **Select File**
+2. Choose any file from your system
+3. Upload completes automatically and the URL is copied
+
+## Common Tasks
+
+### View Upload History
+
+1. Click the **History** tab
+2. See all recent uploads with their URLs
+3. Click the link icon to open in browser, or trash to remove from history
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "Rust is required" | Run `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| Upload fails with 401 | Session token expired — get a fresh one from DevTools |
+| Screenshot is blank | Grant screen capture permission in System Settings |
+| Build fails | Run `rustup update` and ensure Tauri prerequisites are installed |
+
+## Next Steps
+
+<Cards>
+  <Card title="ShareX Integration" description="Configure ShareX for instant screenshot uploads." href="/docs/integrations/sharex" />
+  <Card title="API Reference" description="Build your own integrations with the Emberly API." href="/docs/api" />
+</Cards>

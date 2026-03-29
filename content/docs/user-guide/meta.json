@@ -1,0 +1,11 @@
+{
+  "title": "User Guide",
+  "pages": [
+    "index",
+    "account-settings",
+    "file-management",
+    "custom-domains",
+    "contributor-perks",
+    "discord-perks"
+  ]
+}

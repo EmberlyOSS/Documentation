@@ -1,0 +1,40 @@
+---
+title: Self-Hosting
+description: Host your own instance of Emberly — the open-source file sharing platform.
+---
+
+Emberly is fully open source. You can self-host your own instance with full control over storage, authentication, and domain configuration.
+
+<Cards>
+  <Card title="Development Setup" description="Get the development environment running locally." href="/docs/self-hosting/development" />
+  <Card title="Cloudflare Setup" description="Configure Cloudflare for custom domain SSL provisioning." href="/docs/self-hosting/cloudflare" />
+</Cards>
+
+## Overview
+
+The Emberly platform consists of:
+
+| Component | Technology | Description |
+|-----------|-----------|-------------|
+| **Web application** | Next.js 15, React 18 | Main app, API routes, dashboard |
+| **Database** | PostgreSQL via Prisma | Users, files metadata, domains |
+| **File storage** | S3-compatible (AWS, Tigris, R2, MinIO) | Actual file storage |
+| **Authentication** | NextAuth.js | OAuth (GitHub, Discord, Google) + credentials |
+| **Email** | Resend | Transactional emails |
+| **CDN / Custom domains** | Cloudflare SSL-for-SaaS | Custom hostname SSL |
+
+## Minimum Requirements
+
+- Node.js 18+
+- PostgreSQL 14+
+- S3-compatible object storage
+- A Cloudflare zone (for custom domain features — optional)
+
+## Source Code
+
+Emberly is hosted on GitHub: [EmberlyOSS/Website](https://github.com/EmberlyOSS/Website)
+
+```bash
+git clone https://github.com/EmberlyOSS/Website.git
+cd Website
+```

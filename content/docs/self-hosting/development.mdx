@@ -1,0 +1,159 @@
+---
+title: Development Setup
+description: Run the Emberly web application locally for development and self-hosting.
+---
+
+## Prerequisites
+
+- **Node.js** 18+
+- **bun** (recommended) or npm/yarn
+- **PostgreSQL** 14+ running locally or via Docker
+- **Git**
+
+## Quick Start
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/EmberlyOSS/Website.git
+cd Website
+
+# 2. Install dependencies
+bun install
+
+# 3. Copy environment template
+cp .env.example .env.local
+
+# 4. Set up the database
+bunx prisma migrate dev
+
+# 5. Start the development server
+bun run dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+---
+
+## Environment Variables
+
+Edit `.env.local` with your values:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/emberly"
+
+# NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-random-secret"
+
+# S3-compatible storage
+S3_BUCKET_NAME="emberly"
+S3_REGION="auto"
+S3_ENDPOINT="https://your-s3-endpoint.com"
+AWS_ACCESS_KEY_ID="your-key"
+AWS_SECRET_ACCESS_KEY="your-secret"
+PUBLIC_FILES_URL="https://your-cdn.com"
+
+# OAuth providers (optional)
+GITHUB_CLIENT_ID="..."
+GITHUB_CLIENT_SECRET="..."
+DISCORD_CLIENT_ID="..."
+DISCORD_CLIENT_SECRET="..."
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET="..."
+
+# Email (Resend)
+RESEND_API_KEY="re_..."
+RESEND_FROM_EMAIL="noreply@yourdomain.com"
+
+# Cloudflare (for custom domains)
+CLOUDFLARE_ZONE_ID="..."
+CLOUDFLARE_ZONE_API_TOKEN="..."
+CNAME_TARGET="cname.yourdomain.com"
+
+# VirusTotal (optional)
+VIRUSTOTAL_API_KEY="..."
+```
+
+---
+
+## Project Structure
+
+```
+Website/
+├── app/                        # Next.js app router
+│   ├── api/                    # API routes
+│   │   ├── files/              # File upload/management
+│   │   ├── domains/            # Custom domain API
+│   │   └── auth/               # Authentication
+│   └── (main)/                 # Dashboard pages
+├── packages/
+│   ├── components/             # Shared React components
+│   └── lib/                    # Business logic, utilities
+├── prisma/
+│   └── schema.prisma           # Database schema
+└── public/                     # Static assets
+```
+
+---
+
+## Architecture
+
+```
+React Components (TypeScript)
+         ↓
+Next.js API Routes
+         ↓
+Prisma ORM
+         ↓
+PostgreSQL
+```
+
+File uploads:
+```
+API Route → S3 Storage
+         → Prisma (metadata)
+         → VirusTotal (hash check)
+         → OCR (background)
+```
+
+---
+
+## Database Management
+
+```bash
+# Run migrations
+bunx prisma migrate dev
+
+# Reset database (development only)
+bunx prisma migrate reset
+
+# Explore data
+bunx prisma studio
+
+# Generate Prisma client after schema changes
+bunx prisma generate
+```
+
+---
+
+## Running in Production
+
+```bash
+# Build
+bun run build
+
+# Start
+bun run start
+```
+
+For production deployments, consider:
+- **Vercel** or **Railway** for the Next.js app
+- **Neon**, **Supabase**, or **Railway PostgreSQL** for the database
+- **Tigris**, **Cloudflare R2**, or **AWS S3** for file storage
+
+---
+
+## Tauri Desktop App
+
+The companion desktop uploader is in the `application/` workspace folder — a separate Tauri v2 project. See the [Tauri Uploader guide](/docs/integrations/tauri-uploader) for its setup.

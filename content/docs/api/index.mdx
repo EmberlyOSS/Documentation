@@ -1,0 +1,74 @@
+---
+title: API Reference
+description: The Emberly REST API — upload, manage, and serve files programmatically.
+---
+
+The Emberly REST API lets you upload files, manage metadata, and configure custom domains from any language or tool.
+
+<Cards>
+  <Card title="Files API" description="Upload, update, delete, and serve files." href="/docs/api/files" />
+  <Card title="Domains API" description="Manage custom domains for your uploads." href="/docs/api/domains" />
+</Cards>
+
+## Base URL
+
+```
+https://embrly.ca/api
+```
+
+## Authentication
+
+All endpoints require a **Bearer token**:
+
+```
+Authorization: Bearer YOUR_UPLOAD_TOKEN
+```
+
+Get your token from **Dashboard → Settings → Profile → Upload Token**.
+
+<Callout type="info">
+  Some endpoints (domains, profile) require a **session cookie** from a browser login rather than a token. These are noted per-endpoint.
+</Callout>
+
+## Response Format
+
+All responses return JSON:
+
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Error responses:
+
+```json
+{
+  "success": false,
+  "error": "Human-readable error message"
+}
+```
+
+## Rate Limits
+
+| Plan | Upload rate | API rate |
+|------|------------|---------|
+| Spark (free) | 10 req/min | 60 req/min |
+| Paid plans | Higher limits based on tier | Higher limits |
+
+Exceeding limits returns `429 Too Many Requests`.
+
+## Status Codes
+
+| Code | Meaning |
+|------|---------|
+| `200` | Success |
+| `400` | Bad request — see `error` field |
+| `401` | Unauthenticated |
+| `403` | Forbidden (insufficient permissions or unverified resource) |
+| `404` | Resource not found |
+| `409` | Conflict (duplicate, already exists) |
+| `413` | File too large or quota exceeded |
+| `429` | Rate limited |
+| `500` | Server error |
