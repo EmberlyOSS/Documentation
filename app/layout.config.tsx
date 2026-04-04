@@ -1,14 +1,35 @@
 import type { BaseLayoutProps } from 'fumadocs-ui/layouts/shared';
-import { FaDiscord } from "react-icons/fa";
-import { X } from "lucide-react";
-
+import { type LinkItemType } from 'fumadocs-ui/layouts/docs';
+import { FaDiscord } from 'react-icons/fa';
+import {
+  X,
+  Rocket,
+  BookUser,
+  Plug,
+  Braces,
+  Shield,
+  Server,
+  Users,
+} from 'lucide-react';
 import Image from 'next/image';
 
-/**
- * Shared layout configuration for all Emberly docs layouts.
- * Home Layout: app/(home)/layout.tsx
- * Docs Layout:  app/docs/layout.tsx
- */
+export const linkItems: LinkItemType[] = [
+  {
+    type: 'icon',
+    text: 'Discord',
+    icon: <FaDiscord className="size-4" />,
+    url: 'https://discord.gg/JdNTWcUyeN',
+    label: 'Discord',
+  },
+  {
+    type: 'icon',
+    text: 'Twitter / X',
+    icon: <X className="size-4" />,
+    url: 'https://twitter.com/TryEmberly',
+    label: 'Twitter / X',
+  },
+];
+
 export const baseOptions: BaseLayoutProps = {
   githubUrl: 'https://github.com/EmberlyOSS',
   nav: {
@@ -28,26 +49,59 @@ export const baseOptions: BaseLayoutProps = {
   },
   links: [
     {
+      type: 'menu',
       text: 'Documentation',
-      url: '/docs',
-      active: 'nested-url',
+      url: '/docs/getting-started',
+      items: [
+        {
+          icon: <Rocket className="size-4" />,
+          text: 'Getting Started',
+          description: 'Create your account and upload your first file.',
+          url: '/docs/getting-started',
+        },
+        {
+          icon: <BookUser className="size-4" />,
+          text: 'User Guide',
+          description: 'File management, domains, teams, and settings.',
+          url: '/docs/user-guide',
+        },
+        {
+          icon: <Plug className="size-4" />,
+          text: 'Integrations',
+          description: 'ShareX, Flicker, Flameshot, Python SDK, and more.',
+          url: '/docs/integrations',
+        },
+        {
+          icon: <Braces className="size-4" />,
+          text: 'API Reference',
+          description: 'Full REST API for files, domains, and accounts.',
+          url: '/docs/api',
+        },
+        {
+          icon: <Shield className="size-4" />,
+          text: 'Security',
+          description: 'VirusTotal scanning, HIBP checks, and encryption.',
+          url: '/docs/security',
+        },
+        {
+          icon: <Server className="size-4" />,
+          text: 'Self-Hosting',
+          description: 'Deploy your own Emberly on any infrastructure.',
+          url: '/docs/self-hosting',
+        },
+        {
+          icon: <Users className="size-4" />,
+          text: 'Staff & Operations',
+          description: 'Moderation, support, and incident response.',
+          url: '/docs/staff',
+        },
+      ],
     },
     {
       text: 'Main Website',
       url: 'https://embrly.ca',
     },
-    {
-      type: "icon",
-      text: "Discord",
-      icon: <FaDiscord className="size-6" />,
-      url: "https://discord.gg/JdNTWcUyeN",
-    },
-    {
-      type: "icon",
-      text: "Twitter/X",
-      icon: <X className="size-6" />,
-      url: "https://twitter.com/TryEmberly",
-    },
+    ...linkItems,
   ],
 };
 

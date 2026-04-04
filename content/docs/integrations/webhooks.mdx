@@ -1,0 +1,684 @@
+---
+title: Webhooks
+description: Receive real-time notifications about file uploads, deletions, and account changes.
+---
+
+Webhooks allow your application to receive real-time notifications when events occur on Emberly.
+
+---
+
+## What are Webhooks?
+
+Instead of polling the API repeatedly to check for changes, webhooks send HTTP POST requests to your server whenever something happens on Emberly.
+
+**Example:** When a user uploads a file, Emberly sends an HTTP POST to your webhook URL with details about the upload.
+
+---
+
+## Getting Started
+
+### 1. Create a Webhook Endpoint
+
+Create an HTTP endpoint on your server that accepts POST requests:
+
+```javascript
+// Node.js Express example
+app.post('/webhooks/emberly', (req, res) => {
+  const event = req.body;
+  
+  console.log(`Received event: ${event.type}`);
+  console.log(`Data:`, event.data);
+  
+  // Verify signature (important for security!)
+  if (!verifyWebhookSignature(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  // Handle the event
+  switch (event.type) {
+    case 'file.uploaded':
+      handleFileUpload(event.data);
+      break;
+    case 'file.deleted':
+      handleFileDeleted(event.data);
+      break;
+    // ... more event types
+  }
+  
+  // Acknowledge receipt
+  res.status(200).json({ ok: true });
+});
+```
+
+### 2. Register Webhook in Dashboard
+
+1. Go to **Settings** → **Webhooks**
+2. Click **Add Webhook**
+3. Enter your endpoint URL: `https://yourapp.com/webhooks/emberly`
+4. Select which events to receive
+5. Copy your **Signing Secret** (use for verification)
+
+### 3. Verify Webhook Signature
+
+Always verify that webhooks come from Emberly:
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhookSignature(req) {
+  const signature = req.headers['x-emberly-signature'];
+  const timestamp = req.headers['x-emberly-timestamp'];
+  const secret = process.env.EMBERLY_WEBHOOK_SECRET;
+  
+  // Prevent replay attacks (timestamp shouldn't be too old)
+  const requestTime = parseInt(timestamp);
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - requestTime) > 300) {
+    return false; // Request older than 5 minutes
+  }
+  
+  // Verify signature
+  const body = req.rawBody; // Get raw body as string
+  const message = `${timestamp}.${body}`;
+  const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(message)
+    .digest('hex');
+  
+  return signature === expectedSignature;
+}
+```
+
+---
+
+## Webhook Events
+
+### File Events
+
+#### file.uploaded
+
+Sent when a file is uploaded.
+
+```json
+{
+  "id": "evt_abc123",
+  "type": "file.uploaded",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "data": {
+    "fileId": "file_xyz789",
+    "userId": "user_123",
+    "name": "document.pdf",
+    "size": 1048576,
+    "type": "application/pdf",
+    "url": "https://files.emberly.ca/files/xyz789",
+    "createdAt": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+**When to use:** File upload complete, virus scan passed, ready to process
+**Timing:** Immediately after upload finishes
+
+---
+
+#### file.scanned
+
+Sent when virus scan completes (if file was flagged).
+
+```json
+{
+  "id": "evt_abc124",
+  "type": "file.scanned",
+  "timestamp": "2024-01-15T10:35:00Z",
+  "data": {
+    "fileId": "file_xyz789",
+    "scanId": "scan_456",
+    "status": "clean", // or "quarantined", "malware"
+    "findings": [],
+    "scannedAt": "2024-01-15T10:35:00Z"
+  }
+}
+```
+
+**Status values:**
+- `clean` — No threats detected
+- `suspicious` — Flagged for manual review
+- `quarantined` — Potentially unsafe, stored separately
+- `malware` — Confirmed malicious, removed
+
+---
+
+#### file.deleted
+
+Sent when a file is deleted.
+
+```json
+{
+  "id": "evt_abc125",
+  "type": "file.deleted",
+  "timestamp": "2024-01-15T11:00:00Z",
+  "data": {
+    "fileId": "file_xyz789",
+    "userId": "user_123",
+    "name": "document.pdf",
+    "deletedAt": "2024-01-15T11:00:00Z",
+    "reason": "user" // or "expired", "admin", "abuse"
+  }
+}
+```
+
+---
+
+#### file.ocr_complete
+
+Sent when OCR processing finishes (on all plans).
+
+```json
+{
+  "id": "evt_abc126",
+  "type": "file.ocr_complete",
+  "timestamp": "2024-01-15T10:45:00Z",
+  "data": {
+    "fileId": "file_xyz789",
+    "text": "The text extracted from the image...",
+    "confidence": 0.95,
+    "language": "en",
+    "processedAt": "2024-01-15T10:45:00Z"
+  }
+}
+```
+
+---
+
+### User Events
+
+#### user.created
+
+Sent when a new account is created.
+
+```json
+{
+  "id": "evt_abc127",
+  "type": "user.created",
+  "timestamp": "2024-01-15T09:00:00Z",
+  "data": {
+    "userId": "user_123",
+    "email": "john@example.com",
+    "plan": "spark",
+    "createdAt": "2024-01-15T09:00:00Z"
+  }
+}
+```
+
+---
+
+#### user.upgraded
+
+Sent when user upgrades their plan.
+
+```json
+{
+  "id": "evt_abc128",
+  "type": "user.upgraded",
+  "timestamp": "2024-01-15T09:30:00Z",
+  "data": {
+    "userId": "user_123",
+    "oldPlan": "spark",
+    "newPlan": "flare",
+    "upgradedAt": "2024-01-15T09:30:00Z"
+  }
+}
+```
+
+---
+
+#### user.deleted
+
+Sent when a user account is deleted.
+
+```json
+{
+  "id": "evt_abc129",
+  "type": "user.deleted",
+  "timestamp": "2024-01-15T10:00:00Z",
+  "data": {
+    "userId": "user_123",
+    "email": "john@example.com",
+    "deletedAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+---
+
+#### user.2fa_enabled
+
+Sent when user enables 2FA.
+
+```json
+{
+  "id": "evt_abc130",
+  "type": "user.2fa_enabled",
+  "timestamp": "2024-01-15T10:15:00Z",
+  "data": {
+    "userId": "user_123",
+    "enabledAt": "2024-01-15T10:15:00Z"
+  }
+}
+```
+
+---
+
+### Subscription Events
+
+#### subscription.created
+
+Sent when subscription starts.
+
+```json
+{
+  "id": "evt_abc131",
+  "type": "subscription.created",
+  "timestamp": "2024-01-15T09:30:00Z",
+  "data": {
+    "subscriptionId": "sub_456",
+    "userId": "user_123",
+    "plan": "flare",
+    "amount": 899, // cents
+    "currency": "USD",
+    "billingPeriod": "monthly",
+    "nextBillingDate": "2024-02-15",
+    "createdAt": "2024-01-15T09:30:00Z"
+  }
+}
+```
+
+---
+
+#### subscription.renewed
+
+Sent when automatic renewal processes.
+
+```json
+{
+  "id": "evt_abc132",
+  "type": "subscription.renewed",
+  "timestamp": "2024-02-15T09:30:00Z",
+  "data": {
+    "subscriptionId": "sub_456",
+    "userId": "user_123",
+    "amount": 899,
+    "nextBillingDate": "2024-03-15",
+    "renewedAt": "2024-02-15T09:30:00Z"
+  }
+}
+```
+
+---
+
+#### subscription.cancelled
+
+Sent when subscription is cancelled.
+
+```json
+{
+  "id": "evt_abc133",
+  "type": "subscription.cancelled",
+  "timestamp": "2024-01-20T14:00:00Z",
+  "data": {
+    "subscriptionId": "sub_456",
+    "userId": "user_123",
+    "plan": "flare",
+    "downgradeDate": "2024-02-15", // when plan ends
+    "reason": "user_requested",
+    "cancelledAt": "2024-01-20T14:00:00Z"
+  }
+}
+```
+
+---
+
+## Webhook Delivery
+
+### Retry Policy
+
+If your endpoint returns a non-2xx status code, Emberly retries with exponential backoff:
+
+| Attempt | Delay | Total Wait |
+|---------|-------|-----------|
+| 1st | Immediate | 0 seconds |
+| 2nd | 5 seconds | 5 seconds |
+| 3rd | 30 seconds | 35 seconds |
+| 4th | 5 minutes | 5 min 35 sec |
+| 5th | 30 minutes | 35 min 35 sec |
+| 6th | 2 hours | 2 hrs 35 min |
+| 7th | 5 hours | 7 hrs 35 min |
+| 8th | 10 hours | 17 hrs 35 min |
+
+After 8 failed attempts, the webhook is disabled. You can re-enable it in your settings.
+
+### Response Requirements
+
+**Always respond with:**
+- HTTP status `200` - `299` (success)
+- Within **30 seconds**
+- Keep response body under 1 MB
+
+**Examples of valid responses:**
+
+```json
+{ "ok": true }
+```
+
+```json
+{ "received": true }
+```
+
+```
+OK
+```
+
+Any response code outside 200-299 is treated as failure and triggers retries.
+
+---
+
+## Best Practices
+
+### 1. Verify Signatures
+
+Always verify webhook origin:
+
+```python
+def verify_signature(request, secret):
+    signature = request.headers.get('X-Emberly-Signature')
+    timestamp = request.headers.get('X-Emberly-Timestamp')
+    
+    if not signature or not timestamp:
+        return False
+    
+    # Check timestamp freshness
+    if abs(time.time() - int(timestamp)) > 300:
+        return False
+    
+    # Verify signature
+    message = f"{timestamp}.{request.data.decode()}"
+    expected = hmac.new(
+        secret.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(signature, expected)
+```
+
+### 2. Idempotency
+
+Events might be delivered multiple times. Handle duplicates gracefully:
+
+```javascript
+async function handleWebhook(event) {
+  // Check if we already processed this event
+  const existing = await db.events.findOne({ eventId: event.id });
+  if (existing) {
+    console.log(`Event ${event.id} already processed`);
+    return { ok: true };
+  }
+  
+  // Process the event
+  await processEvent(event);
+  
+  // Mark as processed
+  await db.events.insert({ eventId: event.id, processedAt: new Date() });
+  
+  return { ok: true };
+}
+```
+
+### 3. Async Processing
+
+Don't do heavy processing in the webhook handler. Queue the work:
+
+```javascript
+app.post('/webhooks/emberly', async (req, res) => {
+  const event = req.body;
+  
+  if (!verifyWebhookSignature(req)) {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  // Acknowledge immediately
+  res.status(200).json({ ok: true });
+  
+  // Process async (don't await)
+  queue.enqueue(() => processEvent(event));
+});
+```
+
+### 4. Monitor Webhook Health
+
+Track delivery status:
+
+```javascript
+// Log all webhook events
+axios.interceptors.response.use(
+  response => {
+    logger.info('Webhook delivered', {
+      eventId: response.data.id,
+      status: 200
+    });
+  },
+  error => {
+    logger.error('Webhook failed', {
+      eventId: error.response?.data?.id,
+      status: error.response?.status
+    });
+  }
+);
+```
+
+### 5. Webhook Signature Secret Management
+
+Treat your signing secret like a password:
+
+```javascript
+// Good: Use environment variable
+const SECRET = process.env.EMBERLY_WEBHOOK_SECRET;
+
+// Bad: Hard-coded in code or version control
+const SECRET = "abc123def456"; // Don't do this!
+```
+
+---
+
+## Common Webhook Use Cases
+
+### 1. Auto-delete Expired Files Locally
+
+```javascript
+app.post('/webhooks/emberly', async (req, res) => {
+  if (req.body.type === 'file.deleted') {
+    const { fileId } = req.body.data;
+    
+    // Clean up from your system
+    await localDb.files.delete(fileId);
+    console.log(`Deleted file ${fileId} from local cache`);
+  }
+  
+  res.status(200).json({ ok: true });
+});
+```
+
+### 2. Send Notification on Upload
+
+```javascript
+app.post('/webhooks/emberly', async (req, res) => {
+  if (req.body.type === 'file.uploaded') {
+    const { name, url } = req.body.data;
+    
+    // Notify user
+    await slack.send({
+      channel: '#uploads',
+      text: `New file uploaded: ${name}`
+    });
+  }
+  
+  res.status(200).json({ ok: true });
+});
+```
+
+### 3. Trigger Workflow on Plan Upgrade
+
+```javascript
+app.post('/webhooks/emberly', async (req, res) => {
+  if (req.body.type === 'user.upgraded') {
+    const { userId, newPlan } = req.body.data;
+    
+    // Trigger welcome email for new features
+    await sendEmail(userId, {
+      template: `welcome-${newPlan}`,
+      subject: `Welcome to ${newPlan.toUpperCase()} plan!`
+    });
+  }
+  
+  res.status(200).json({ ok: true });
+});
+```
+
+### 4. Sync User Data
+
+```javascript
+app.post('/webhooks/emberly', async (req, res) => {
+  if (req.body.type === 'user.created') {
+    const { userId, email } = req.body.data;
+    
+    // Sync to your database
+    await myDb.users.insert({
+      emberly_id: userId,
+      email: email,
+      synced_at: new Date()
+    });
+  }
+  
+  res.status(200).json({ ok: true });
+});
+```
+
+---
+
+## Webhook Testing
+
+### Manual Testing
+
+1. Use a service like [Webhook.site](https://webhook.site) to get a test URL
+2. Add it to your webhook settings
+3. Trigger an event (upload a file, change plan)
+4. Check the webhook.site dashboard for the request
+
+### Local Testing with ngrok
+
+```bash
+# Start local server
+npm run dev  # runs on :3000
+
+# Expose to internet
+ngrok http 3000
+
+# Use ngrok URL in webhook settings
+# https://abc123.ngrok.io/webhooks/emberly
+```
+
+### Testing with cURL
+
+```bash
+# Simulate webhook
+curl -X POST http://localhost:3000/webhooks/emberly \
+  -H "Content-Type: application/json" \
+  -H "X-Emberly-Signature: abc123" \
+  -H "X-Emberly-Timestamp: $(date +%s)" \
+  -d '{
+    "id": "evt_test",
+    "type": "file.uploaded",
+    "data": { "fileId": "file_123" }
+  }'
+```
+
+---
+
+## Troubleshooting
+
+### Webhooks Not Arriving
+
+1. **Check endpoint is publicly accessible**
+   ```bash
+   curl -X POST https://yourapp.com/webhooks/emberly -d '{"test": true}'
+   ```
+
+2. **Check firewall/CORS** — Emberly sends from IP ranges (get list from dashboard)
+
+3. **Check response code** — Make sure you return 200-299
+
+4. **Check logs** — Review webhook delivery history in your settings
+
+### Wrong Signature
+
+- Verify you're using the correct secret from dashboard
+- Use `req.rawBody` not parsed body for signature verification
+- Include timestamp in signature calculation
+
+### Webhook Disabled
+
+If Emberly disables your webhook after repeated failures:
+1. Fix your endpoint
+2. Go to Settings → Webhooks
+3. Click the disabled webhook
+4. Click "Re-enable"
+
+---
+
+## API Reference
+
+### List Webhooks
+
+```bash
+curl -H "Authorization: Bearer API_KEY" \
+  https://api.emberly.ca/webhooks
+```
+
+Response:
+```json
+[
+  {
+    "id": "wh_abc123",
+    "url": "https://yourapp.com/webhooks/emberly",
+    "events": ["file.uploaded", "file.deleted"],
+    "enabled": true,
+    "createdAt": "2024-01-15T09:00:00Z"
+  }
+]
+```
+
+### Create Webhook
+
+```bash
+curl -X POST -H "Authorization: Bearer API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://yourapp.com/webhooks/emberly",
+    "events": ["file.uploaded", "file.deleted", "user.upgraded"]
+  }' \
+  https://api.emberly.ca/webhooks
+```
+
+### Delete Webhook
+
+```bash
+curl -X DELETE -H "Authorization: Bearer API_KEY" \
+  https://api.emberly.ca/webhooks/wh_abc123
+```
+
+### Retry Failed Delivery
+
+```bash
+curl -X POST -H "Authorization: Bearer API_KEY" \
+  https://api.emberly.ca/webhooks/wh_abc123/retry/evt_xyz789
+```

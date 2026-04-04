@@ -1,12 +1,12 @@
 {
   "title": "Emberly Docs",
   "pages": [
-    "index",
     "getting-started",
     "user-guide",
     "integrations",
     "api",
     "security",
-    "self-hosting"
+    "self-hosting",
+    "staff"
   ]
 }

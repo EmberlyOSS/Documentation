@@ -1,8 +1,10 @@
 {
   "title": "Self-Hosting",
+  "root": true,
   "pages": [
     "index",
     "development",
+    "contributing",
     "cloudflare"
   ]
 }

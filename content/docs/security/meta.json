@@ -1,5 +1,6 @@
 {
   "title": "Security",
+  "root": true,
   "pages": [
     "index",
     "virustotal",

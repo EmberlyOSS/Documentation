@@ -1,36 +1,229 @@
 ---
 title: Development Setup
-description: Run the Emberly web application locally for development and self-hosting.
+description: Complete guide to setting up the Emberly development environment locally. Prerequisites, configuration, database setup, and running the dev server.
 ---
+
+This guide covers setting up Emberly for local development. Follow these steps to get the entire stack running on your machine.
 
 ## Prerequisites
 
-- **Node.js** 18+
-- **bun** (recommended) or npm/yarn
-- **PostgreSQL** 14+ running locally or via Docker
-- **Git**
+### System Requirements
 
-## Quick Start
+- **OS:** Linux, macOS, or Windows (with WSL2 recommended)
+- **RAM:** 8 GB minimum (16 GB recommended)
+- **Disk:** 20 GB free space
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/EmberlyOSS/Website.git
-cd Website
+### Required Software
 
-# 2. Install dependencies
-bun install
+Ensure you have installed:
 
-# 3. Copy environment template
-cp .env.example .env.local
+1. **Node.js 18+** ([download](https://nodejs.org/))
+   ```bash
+   node --version  # Should be v18+
+   ```
 
-# 4. Set up the database
-bunx prisma migrate dev
+2. **Bun** (recommended package manager) or npm/yarn
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   ```
 
-# 5. Start the development server
-bun run dev
+3. **PostgreSQL 14+** ([download](https://www.postgresql.org/download/))
+   ```bash
+   psql --version  # Should be 14+
+   ```
+
+4. **Git**
+   ```bash
+   git --version
+   ```
+
+5. **Docker** (optional but recommended for services)
+   ```bash
+   docker --version
+   ```
+
+---
+
+## Repository Structure
+
+```
+emberly/
+├── website/               # Next.js frontend + API (main project)
+├── documentation/         # Documentation site (Nextra)
+├── application/          # Tauri desktop app
+└── premid/              # PreMID integration
 ```
 
-The app will be available at `http://localhost:3000`.
+This guide focuses on the **website** project, which contains both frontend and backend.
+
+---
+
+## Step 1: Clone Repository
+
+```bash
+git clone https://github.com/EmberlyOSS/Website.git
+cd Website
+```
+
+## Step 2: Install Dependencies
+
+Using **bun** (recommended):
+```bash
+bun install
+```
+
+Or using **npm**:
+```bash
+npm install
+```
+
+Or using **yarn**:
+```bash
+yarn install
+```
+
+Installation takes ~5-10 minutes on first run.
+
+---
+
+## Step 3: Set Up Database
+
+### Option A: Local PostgreSQL
+
+**Start PostgreSQL** (if not already running):
+
+**macOS (with Homebrew):**
+```bash
+brew services start postgresql
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo systemctl start postgresql
+```
+
+**Windows (WSL2):**
+```bash
+sudo service postgresql start
+```
+
+**Create development database:**
+```bash
+createdb emberly_dev
+```
+
+Or via psql:
+```bash
+psql -U postgres -c "CREATE DATABASE emberly_dev;"
+```
+
+### Option B: Docker (Recommended)
+
+Use Docker Compose for a containerized PostgreSQL:
+
+**Create `docker-compose.yml` in project root:**
+```yaml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: emberly_dev
+      POSTGRES_USER: emberly
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emberly -d emberly_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+```
+
+**Start PostgreSQL:**
+```bash
+docker-compose up -d postgres
+```
+
+**Stop PostgreSQL:**
+```bash
+docker-compose down
+```
+
+---
+
+## Step 4: Configuration
+
+### Copy Environment Template
+
+```bash
+cp .env.example .env.local
+```
+
+### Configure `.env.local`
+
+Edit `.env.local` with your values:
+
+```env
+# Database (required)
+DATABASE_URL="postgresql://emberly:password@localhost:5432/emberly_dev"
+
+# NextAuth (required for authentication)
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-random-secret-key-here-at-least-32-chars"
+
+# File Storage (required)
+# Using local file system for dev:
+S3_BUCKET_NAME="emberly-dev"
+S3_REGION="auto"
+S3_ENDPOINT="http://localhost:9000"
+AWS_ACCESS_KEY_ID="minioadmin"
+AWS_SECRET_ACCESS_KEY="minioadmin"
+PUBLIC_FILES_URL="http://localhost:9000/emberly-dev"
+
+# OAuth Providers (optional - get from GitHub/Discord)
+GITHUB_CLIENT_ID="your-github-client-id"
+GITHUB_CLIENT_SECRET="your-github-client-secret"
+DISCORD_CLIENT_ID="your-discord-client-id"
+DISCORD_CLIENT_SECRET="your-discord-client-secret"
+
+# Email (optional - for development)
+RESEND_API_KEY="re_xxx" # Get from resend.com
+RESEND_FROM_EMAIL="dev@example.com"
+
+# VirusTotal (optional)
+VIRUSTOTAL_API_KEY="your-virustotal-api-key"
+
+# Cloudflare (optional - for custom domains)
+CLOUDFLARE_ZONE_ID="your-zone-id"
+CLOUDFLARE_ZONE_API_TOKEN="your-api-token"
+CNAME_TARGET="cname.yourdomain.local"
+
+# Admin settings
+ADMIN_EMAIL="admin@example.com"
+IS_PUBLIC_INSTANCE="true"
+```
+
+### Generate NEXTAUTH_SECRET
+
+Generate a secure random secret:
+
+**Using OpenSSL:**
+```bash
+openssl rand -base64 32
+```
+
+**Using Node.js:**
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Paste the output into `NEXTAUTH_SECRET`.
 
 ---
 

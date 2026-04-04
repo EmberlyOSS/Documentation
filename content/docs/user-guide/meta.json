@@ -1,10 +1,12 @@
 {
   "title": "User Guide",
+  "root": true,
   "pages": [
     "index",
     "account-settings",
     "file-management",
     "custom-domains",
+    "teams-and-squads",
     "contributor-perks",
     "discord-perks"
   ]

@@ -28,6 +28,15 @@
   --accent-foreground: 260 47.4% 11.2%;
   --border: 260 20% 88%;
   --ring: 260 80% 52%;
+
+  /* Section colors for sidebar tab icons */
+  --getting-started-color: hsl(142 70% 40%);
+  --user-guide-color: hsl(217 91% 55%);
+  --integrations-color: hsl(280 70% 55%);
+  --api-color: hsl(38 92% 48%);
+  --security-color: hsl(0 72% 50%);
+  --self-hosting-color: hsl(199 89% 44%);
+  --staff-color: hsl(262 83% 56%);
 }
 
 .dark {
@@ -48,6 +57,15 @@
   --accent-foreground: 260 40% 98%;
   --border: 260 32.6% 18%;
   --ring: 260 80% 65%;
+
+  /* Section colors for sidebar tab icons (slightly lighter for dark mode) */
+  --getting-started-color: hsl(142 65% 52%);
+  --user-guide-color: hsl(217 91% 65%);
+  --integrations-color: hsl(280 70% 68%);
+  --api-color: hsl(38 92% 60%);
+  --security-color: hsl(0 72% 62%);
+  --self-hosting-color: hsl(199 89% 58%);
+  --staff-color: hsl(262 83% 68%);
 }
 
 /* Typography */

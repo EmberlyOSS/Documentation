@@ -1,0 +1,654 @@
+---
+title: Contributing Guide
+description: How to contribute to Emberly - setting up development environment, code standards, and submitting pull requests.
+---
+
+Thanks for your interest in contributing to Emberly! This guide explains how to set up your development environment, write code that matches our standards, and submit your changes.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- **Node.js** 18+ (check with `node -v`)
+- **PostgreSQL** 14+ (for database)
+- **Git** (for version control)
+- **Rust** 1.70+ (for Tauri desktop app, optional)
+
+See the [Development Setup Guide](/docs/self-hosting/development) for detailed installation steps.
+
+---
+
+## Development Workflow
+
+### 1. Fork and Clone
+
+```bash
+# Fork the repository on GitHub
+# https://github.com/emberly/emberly
+
+# Clone your fork
+git clone https://github.com/YOUR_USERNAME/emberly.git
+cd emberly
+```
+
+### 2. Create a Feature Branch
+
+```bash
+# Always branch from main
+git checkout main
+git pull origin main
+
+# Create a branch for your feature
+git checkout -b feature/your-feature-name
+# or for bug fixes:
+git checkout -b fix/bug-description
+
+# Branch naming conventions:
+# feature/* — new features
+# fix/* — bug fixes
+# docs/* — documentation updates
+# refactor/* — code cleanup (no behavior changes)
+# perf/* — performance improvements
+```
+
+### 3. Make Your Changes
+
+Follow the standards below and commit regularly:
+
+```bash
+git add .
+git commit -m "Brief description of change"
+
+# Good commit messages:
+# ✓ "Add file compression on upload"
+# ✓ "Fix OCR timeout on large PDFs"
+# ✗ "stuff" or "fix"
+```
+
+### 4. Test Your Changes
+
+Before pushing, ensure your code works:
+
+```bash
+# Run tests
+npm test
+
+# Check for linting errors
+npm run lint
+
+# Build the project
+npm run build
+
+# Test manually in dev server
+npm run dev
+```
+
+### 5. Push and Create Pull Request
+
+```bash
+# Push to your fork
+git push origin feature/your-feature-name
+
+# Go to GitHub and create a PR
+# Describe what changed and why
+```
+
+---
+
+## Code Standards
+
+### TypeScript
+
+All TypeScript code must pass type checking:
+
+```bash
+npm run type-check
+```
+
+**Guidelines:**
+- Use `strict: true` in tsconfig
+- Don't use `any` types (use unknown and narrow)
+- Export public APIs explicitly
+- Use interfaces for public contracts
+
+```typescript
+// Good
+interface FileUploadRequest {
+  file: File;
+  onProgress?: (percent: number) => void;
+}
+
+export async function uploadFile(req: FileUploadRequest): Promise<UploadedFile> {
+  // implementation
+}
+
+// Bad
+export async function uploadFile(file: any, onProgress?: any): any {
+  // ...
+}
+```
+
+---
+
+### React Components
+
+Components should be functional with proper TypeScript:
+
+```typescript
+// src/components/FileUploader.tsx
+import React from 'react';
+
+interface FileUploaderProps {
+  onUpload: (file: File) => void;
+  maxSize?: number;
+}
+
+export const FileUploader: React.FC<FileUploaderProps> = ({
+  onUpload,
+  maxSize = 5 * 1024 * 1024
+}) => {
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      onUpload(files[0]);
+    }
+  };
+
+  return (
+    <div onDrop={handleDrop}>
+      Drop files here
+    </div>
+  );
+};
+```
+
+---
+
+### API Routes
+
+Backend routes should follow REST conventions:
+
+```typescript
+// app/api/files/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const file = await db.file.findUnique({ where: { id: params.id } });
+    if (!file) {
+      return NextResponse.json(
+        { error: 'File not found' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(file);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to fetch file' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  // Implementation
+}
+```
+
+**Route naming:**
+- `GET /api/resource` — List
+- `POST /api/resource` — Create
+- `GET /api/resource/[id]` — Get one
+- `PATCH /api/resource/[id]` — Update
+- `DELETE /api/resource/[id]` — Delete
+
+---
+
+### Linting and Formatting
+
+```bash
+# Check code style
+npm run lint
+
+# Auto-fix style issues
+npm run lint:fix
+
+# Format with Prettier
+npm run format
+```
+
+Configuration files:
+- `.eslintrc.mjs` — ESLint rules
+- `prettier.config.js` — Formatting rules
+
+---
+
+## Testing
+
+### Adding Tests
+
+Write tests for new features:
+
+```typescript
+// src/components/__tests__/FileUploader.test.tsx
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { FileUploader } from '../FileUploader';
+
+describe('FileUploader', () => {
+  it('should call onUpload when file is dropped', () => {
+    const onUpload = vi.fn();
+    render(<FileUploader onUpload={onUpload} />);
+    
+    // Simulate drop event
+    // Assert onUpload was called
+    expect(onUpload).toHaveBeenCalled();
+  });
+});
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+npm test
+
+# Run specific test
+npm test FileUploader
+
+# Run with coverage
+npm test -- --coverage
+
+# Watch mode (re-run on changes)
+npm test -- --watch
+```
+
+---
+
+## Git Commits
+
+Use conventional commit messages:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+**Types:**
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation
+- `refactor:` Code cleanup
+- `perf:` Performance improvement
+- `test:` Tests
+- `ci:` CI/CD changes
+
+**Examples:**
+```
+feat(upload): add file compression
+
+Implements GZIP compression for uploaded files to reduce storage.
+Compression happens client-side before upload.
+
+Closes #123
+```
+
+```
+fix(auth): handle OAuth token expiration
+
+Previously we didn't refresh OAuth tokens when they expired.
+Now we automatically refresh and retry the request.
+```
+
+---
+
+## Pull Request Process
+
+### Before You Submit
+
+1. **Update main from upstream**
+   ```bash
+   git fetch origin
+   git rebase origin/main
+   ```
+
+2. **Ensure all tests pass**
+   ```bash
+   npm test
+   npm run lint
+   npm run type-check
+   ```
+
+3. **Write a clear PR description**
+   - What does this PR do?
+   - Why is it needed?
+   - How was it tested?
+   - Are there breaking changes?
+
+### PR Description Template
+
+```markdown
+## Description
+Clear explanation of what this PR does.
+
+## Motivation
+Why is this change needed? Link to issue if applicable.
+
+## Changes Made
+- Change 1
+- Change 2
+- Change 3
+
+## Testing
+How did you test this?
+- Manual test steps
+- New unit tests added
+- Tested on which browsers?
+
+## Screenshots (if applicable)
+Before/after images
+
+## Checklist
+- [ ] Code follows style guidelines
+- [ ] Tests pass locally
+- [ ] No new console errors
+- [ ] Documentation updated (if needed)
+- [ ] Commit messages follow conventions
+
+## Related Issues
+Closes #123
+```
+
+### Code Review Process
+
+1. **Automatic checks run:**
+   - TypeScript compilation
+   - Linting
+   - Tests
+   - Build verification
+
+2. **Team reviews code:**
+   - Checks for correctness
+   - Suggests improvements
+   - Tests manually
+
+3. **Address feedback:**
+   ```bash
+   # Make changes
+   git add .
+   git commit -m "Review feedback: improve error handling"
+   git push
+
+   # Don't force push (it helps reviewers see changes)
+   ```
+
+4. **Merge once approved:**
+   ```bash
+   # Reviewer merges (use "Squash and merge" for cleaner history)
+   ```
+
+---
+
+## Documentation Updates
+
+When adding features, update documentation:
+
+### TypeScript/API Docs
+```typescript
+/**
+ * Upload a file to Emberly.
+ * 
+ * @param file - The file to upload
+ * @param options - Upload options
+ * @returns Uploaded file metadata
+ * 
+ * @example
+ * ```
+ * const result = await uploadFile(file, { onProgress });
+ * console.log(result.url);
+ * ```
+ */
+export async function uploadFile(
+  file: File,
+  options?: UploadOptions
+): Promise<UploadedFile> {
+  // ...
+}
+```
+
+### MDX Documentation
+Create or update docs in `/documentation/content/docs`:
+
+```markdown
+---
+title: New Feature
+description: What this feature does.
+---
+
+## Overview
+Explain what the feature is.
+
+## Usage
+Show how to use it.
+
+### Example
+Provide code example.
+```
+
+---
+
+## Common Tasks
+
+### Adding a Database Field
+
+1. **Update Prisma schema**
+   ```prisma
+   // prisma/schema.prisma
+   model File {
+     // existing fields...
+     newField String
+   }
+   ```
+
+2. **Create migration**
+   ```bash
+   npx prisma migrate dev --name add_new_field
+   ```
+
+3. **Update API types**
+   ```typescript
+   // packages/types/file.ts
+   export interface File {
+     // existing fields...
+     newField: string;
+   }
+   ```
+
+4. **Regenerate Prisma client**
+   ```bash
+   npx prisma generate
+   ```
+
+---
+
+### Adding a New API Endpoint
+
+1. **Create route file**
+   ```typescript
+   // app/api/resource/route.ts
+   export async function GET(request: NextRequest) {
+     // implementation
+   }
+   ```
+
+2. **Add types**
+   ```typescript
+   // packages/types/resource.ts
+   export interface Resource { }
+   ```
+
+3. **Write tests**
+   ```typescript
+   // __tests__/api/resource.test.ts
+   describe('GET /api/resource', () => {
+     it('should return resources', async () => {
+       // test
+     });
+   });
+   ```
+
+4. **Document in API reference**
+   ```markdown
+   // docs/api/user-reference.mdx
+   ## Get Resource
+   `GET /api/resource`
+   <!-- full documentation -->
+   ```
+
+---
+
+### Adding a New React Component
+
+1. **Create component**
+   ```typescript
+   // src/components/MyComponent.tsx
+   import React from 'react';
+   
+   interface MyComponentProps { }
+   
+   export const MyComponent: React.FC<MyComponentProps> = () => {
+     return <div></div>;
+   };
+   ```
+
+2. **Write tests**
+   ```typescript
+   // src/components/__tests__/MyComponent.test.tsx
+   ```
+
+3. **Add to Storybook** (if design component)
+   ```typescript
+   // src/components/MyComponent.stories.tsx
+   ```
+
+4. **Use in app**
+   ```typescript
+   import { MyComponent } from '@/components/MyComponent';
+   ```
+
+---
+
+## Reporting Issues
+
+Found a bug? Create an issue with:
+
+1. **Clear title**
+   - Bad: "Doesn't work"
+   - Good: "Upload fails on Firefox with large files"
+
+2. **Description**
+   - What were you trying to do?
+   - What happened?
+   - What should happen?
+
+3. **Reproduction Steps**
+   - Step by step to reproduce
+   - Include exact commands/actions
+
+4. **Environment**
+   - OS (Windows/Mac/Linux)
+   - Browser (if relevant)
+   - Node version
+   - Database version
+
+5. **Error Messages**
+   - Full stack trace
+   - Console logs
+   - Network errors
+
+```markdown
+## Bug Report: Upload Fails on Windows
+
+### Description
+When uploading a file larger than 500MB on Windows, the upload fails 
+with a cryptic error message.
+
+### Steps to Reproduce
+1. Go to upload page
+2. Select a file larger than 500MB
+3. Click upload
+4. Watch as it fails
+
+### Expected
+File should upload successfully
+
+### Actual
+Error: "Upload failed"
+
+### Environment
+- OS: Windows 11
+- Browser: Firefox 121
+- Node: v18.18.0
+
+### Error Message
+```
+Upload failed: EFBIG: file too large, open 'file.iso'
+```
+```
+
+---
+
+## Getting Help
+
+- **Questions?** Open a discussion on GitHub
+- **Need guidance?** Ask in `/questions` or start a discussion
+- **Found a bug?** Create an issue with reproduction steps
+- **Want to pair?** Message a maintainer on Discord
+
+---
+
+## Recognition
+
+Contributors are recognized in:
+- **CONTRIBUTORS.md** — All contributors
+- **Release notes** — For significant contributions
+- **GitHub** — Automatically linked to PRs
+
+---
+
+## Code of Conduct
+
+All contributors must follow our [Code of Conduct](../CODE_OF_CONDUCT.md). This includes:
+- Respectful communication
+- Inclusive environment
+- No harassment or discrimination
+- Constructive feedback only
+
+---
+
+## License
+
+All contributions are made under the project's license. By submitting a PR, you agree to license your contribution under the same terms.
+
+---
+
+## Questions?
+
+- 📖 [Development Setup](/docs/self-hosting/development)
+- [GitHub Discussions](https://github.com/emberly/emberly/discussions)
+- [Issue Tracker](https://github.com/emberly/emberly/issues)
+- 💻 Git Help: `git help <command>`
+
+**Thanks for contributing! 🎉**
