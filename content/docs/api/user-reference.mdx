@@ -176,41 +176,6 @@ console.log(data.url); // Shareable URL
 
 ---
 
-### Get File Metadata
-
-**GET `/api/files/[id]`**
-
-Get a file's details and access history.
-
-**Parameters:** None (file ID in URL)
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "cm7xabc123",
-    "name": "document.pdf",
-    "url": "https://embrly.ca/yourusername/document.pdf",
-    "visibility": "PUBLIC",
-    "password": false,
-    "createdAt": "2026-03-29T15:30:00Z",
-    "updatedAt": "2026-03-29T15:30:00Z",
-    "expiresAt": null,
-    "downloads": 42,
-    "accessLog": [
-      {
-        "timestamp": "2026-03-29T16:00:00Z",
-        "ip": "192.168.1.1",
-        "userAgent": "Mozilla/5.0..."
-      }
-    ]
-  }
-}
-```
-
----
-
 ### Update File
 
 **PATCH `/api/files/[id]`**
@@ -269,14 +234,20 @@ Download a file. If password-protected, include password in query string.
 
 **GET `/api/files`**
 
-List all your uploaded files with pagination.
+List all your uploaded files with pagination and filtering.
+
+**Auth:** Session cookie or Bearer token
 
 **Query Parameters:**
 - `page` (default: 1) — Page number
-- `limit` (default: 50, max: 200) — Results per page
-- `sort` — `recent`, `oldest`, `size`, `name`
-- `visibility` — Filter by `PUBLIC` or `PRIVATE`
-- `search` — Search by filename
+- `limit` (default: 24) — Results per page
+- `search` — Search by filename or OCR text
+- `sortBy` — `newest` (default), `oldest`, `largest`
+- `visibility` — Comma-separated: `PUBLIC`, `PRIVATE`, `hasPassword`
+- `types` — Comma-separated MIME types (e.g. `image/png,image/jpeg`)
+- `dateFrom` — ISO date filter (uploaded on or after)
+- `dateTo` — ISO date filter (uploaded on or before)
+- `squadId` — Filter files belonging to a specific squad
 
 **Response (200):**
 ```json
@@ -662,9 +633,9 @@ Upload a new profile avatar.
 
 ### Change Password
 
-**POST `/api/profile/password`**
+Password changes are made via `PATCH /api/profile` with the password fields.
 
-Change your account password.
+**PATCH `/api/profile`**
 
 **Request Body:**
 ```json
@@ -674,24 +645,22 @@ Change your account password.
 }
 ```
 
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Password changed"
-}
-```
+**Response (200):** Updated profile object
 
 **Errors:**
-- `400` — Current password incorrect or new password too weak
+- `400` — Current password incorrect, new password too weak, or reuse of a recent password
 
 ---
 
 ### Two-Factor Authentication
 
-**POST `/api/profile/2fa/enable`**
+<Callout type="info">
+  2FA endpoints require a session cookie (browser session), not a bearer token.
+</Callout>
 
-Enable two-factor authentication (TOTP).
+**GET `/api/profile/2fa`**
+
+Generate a TOTP secret and QR code URI to set up an authenticator app.
 
 **Response (200):**
 ```json
@@ -699,51 +668,57 @@ Enable two-factor authentication (TOTP).
   "success": true,
   "data": {
     "secret": "JBSWY3DPEBLW64TMMQ======",
-    "qrCode": "https://qr-code-url.com/...",
-    "backupCodes": ["12345678", "87654321", ...]
+    "otpauthUri": "otpauth://totp/Emberly:user@example.com?secret=..."
   }
 }
 ```
 
 ---
 
-**POST `/api/profile/2fa/verify`**
+**POST `/api/profile/2fa`** with `{ "step": "send-code" }`
 
-Verify TOTP code to enable 2FA.
+Validate a TOTP token and send an email confirmation code.
 
 **Request Body:**
 ```json
-{
-  "token": "123456"
-}
+{ "step": "send-code", "totpCode": "123456" }
+```
+
+---
+
+**POST `/api/profile/2fa`** with `{ "step": "verify-code" }`
+
+Confirm the email code to complete 2FA enrollment.
+
+**Request Body:**
+```json
+{ "step": "verify-code", "emailCode": "789012" }
 ```
 
 **Response (200):**
 ```json
 {
   "success": true,
-  "message": "2FA enabled"
+  "data": { "twoFactorEnabled": true }
 }
 ```
 
 ---
 
-**POST `/api/profile/2fa/disable`**
+**DELETE `/api/profile/2fa`**
 
-Disable two-factor authentication.
+Disable two-factor authentication (requires email verification).
 
 **Request Body:**
 ```json
-{
-  "token": "123456"
-}
+{ "emailCode": "789012" }
 ```
 
 **Response (200):**
 ```json
 {
   "success": true,
-  "message": "2FA disabled"
+  "data": { "twoFactorEnabled": false }
 }
 ```
 

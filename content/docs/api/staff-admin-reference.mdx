@@ -179,7 +179,7 @@ Ban or suspend a user account.
 
 ### Unban User
 
-**POST `/api/admin/users/[userId]/unban`**
+**DELETE `/api/admin/users/[userId]/ban`**
 
 Remove a ban or suspension.
 
@@ -965,5 +965,325 @@ Admin endpoints follow the same error format as user endpoints:
 
 For admin support:
 - **Email:** admin-support@embrly.ca
-- **Internal Wiki:** (link to internal docs)
-- **On-call Rotation:** (check schedule)
+- **Discord:** #staff channel
+
+---
+
+## Additional Admin Endpoints
+
+The following endpoints are documented from the live API and supplement the sections above.
+
+### User Verification
+
+**POST `/api/admin/users/[id]/verify`** — Mark user as verified (`isVerified = true`)
+
+**DELETE `/api/admin/users/[id]/verify`** — Unverify a user
+
+---
+
+### User Grants
+
+Awards that grant extra storage, domains, or other benefits.
+
+**GET `/api/admin/users/[id]/grants`** — List grants for a user
+
+**POST `/api/admin/users/[id]/grants`** — Award a grant
+
+```json
+{
+  "type": "storage",
+  "amount": 1073741824,
+  "reason": "Contest winner"
+}
+```
+
+**DELETE `/api/admin/users/[id]/grants`** — Revoke a grant (`?grantId=`)
+
+---
+
+### User Storage Assignment
+
+**PUT `/api/admin/users/[id]/storage`**
+
+Assign a specific storage bucket to a user. Sends bucket credentials email to the user.
+
+```json
+{ "bucketId": "bucket_abc123" }
+```
+
+Pass `{ "bucketId": null }` to clear the assignment and return user to the default bucket.
+
+---
+
+### Revoke User Sessions
+
+**DELETE `/api/users/[id]/sessions`**
+
+Immediately invalidates all active sessions for a user (increments their session version). The user is forced to log in again on all devices.
+
+---
+
+### Remove User Avatar
+
+**DELETE `/api/users/[id]/avatar`**
+
+Remove a user's avatar from storage and clear it from their profile. Admin only.
+
+---
+
+### Content Flagging
+
+**POST `/api/admin/content/flag`**
+
+Flag or unflag a file or URL for content review.
+
+```json
+{
+  "contentType": "FILE",
+  "contentId": "cm7xabc123",
+  "reason": "Reported CSAM — under review",
+  "flagged": true
+}
+```
+
+`contentType` must be `"FILE"` or `"URL"`. Set `flagged: false` to unflag.
+
+---
+
+### Applications Management
+
+**GET `/api/admin/applications`**
+
+Paginated list of all submitted applications (staff, partner, verification, ban appeals).
+
+**Query Parameters:**
+- `type` — `staff`, `partner`, `verification`, `ban_appeal`
+- `status` — `pending`, `reviewing`, `approved`, `rejected`
+- `page`, `limit`
+
+---
+
+**PATCH `/api/admin/applications/[id]`**
+
+Review an application.
+
+```json
+{
+  "status": "APPROVED",
+  "notes": "Looks good, approved.",
+  "awardGrant": true
+}
+```
+
+`status` values: `APPROVED`, `REJECTED`, `REVIEWING`
+
+---
+
+### Audit Logs
+
+**GET `/api/admin/audit/logs`**
+
+Paginated audit log of all admin and system events.
+
+**Query Parameters:**
+- `action` — Filter by event action type
+- `resourceType` — Filter by resource (`user`, `file`, `domain`, etc.)
+- `from` — ISO date start
+- `to` — ISO date end
+- `success` — `true` or `false`
+- `page`, `limit`
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "evt_123",
+      "action": "user.banned",
+      "resourceType": "user",
+      "resourceId": "user_456",
+      "performedBy": "admin_789",
+      "success": true,
+      "metadata": { "reason": "ToS violation" },
+      "createdAt": "2026-04-12T10:00:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### Email Operations
+
+**POST `/api/admin/emails/broadcast`**
+
+Broadcast an email to a filtered set of users.
+
+```json
+{
+  "subject": "Service Update",
+  "body": "<p>HTML content</p>",
+  "priority": "normal",
+  "ctaLabel": "Read More",
+  "ctaHref": "https://embrly.ca/blog/update",
+  "recipientFilter": "all",
+  "dryRun": true
+}
+```
+
+`recipientFilter` values: `"all"`, `"verified"`, `"unverified"`, `"admin"`
+
+Set `dryRun: true` to see recipient count without sending.
+
+---
+
+**POST `/api/admin/email/send`**
+
+Send a transactional email to specific recipients.
+
+```json
+{
+  "to": ["user@example.com"],
+  "subject": "Admin Notice",
+  "body": "<p>Content</p>",
+  "priority": "high"
+}
+```
+
+---
+
+**GET `/api/admin/email/stats`**
+
+Email delivery statistics for the past 30 days.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "total": 12400,
+    "pending": 42,
+    "failed": 8,
+    "sent": 12350
+  }
+}
+```
+
+---
+
+**GET `/api/admin/email/logs`** — SuperAdmin only
+
+Paginated email event logs with filtering by status and date.
+
+---
+
+### Promo Codes
+
+**GET `/api/admin/promo-codes`** — List Stripe promo codes and coupons
+
+**POST `/api/admin/promo-codes`** — Create a new promo code
+
+```json
+{
+  "code": "LAUNCH50",
+  "discountPercent": 50,
+  "maxRedemptions": 100,
+  "expiresAt": "2026-12-31T23:59:59Z",
+  "private": false
+}
+```
+
+**DELETE `/api/admin/promo-codes/[id]`** — Deactivate (archive) a promo code
+
+---
+
+### Products
+
+**DELETE `/api/admin/products/[id]`**
+
+Soft-delete a product (`deletedAt` set, `isActive = false`). Does not affect existing subscribers.
+
+**POST `/api/admin/products/[id]/sync`**
+
+Sync product to Stripe — creates or updates the Stripe product and its prices, then writes back Stripe IDs to the database.
+
+---
+
+### Storage Buckets
+
+**GET `/api/admin/storage/buckets`** — List all S3 storage bucket configurations (secrets masked)
+
+**POST `/api/admin/storage/buckets`** — Add a new S3 bucket
+
+```json
+{
+  "name": "EU Bucket",
+  "endpoint": "https://s3.eu-central-1.amazonaws.com",
+  "region": "eu-central-1",
+  "bucket": "emberly-eu",
+  "accessKeyId": "AKIA...",
+  "secretAccessKey": "...",
+  "isDefault": false
+}
+```
+
+**GET `/api/admin/storage/buckets/[id]`** — Get bucket details (secrets masked)
+
+**PUT `/api/admin/storage/buckets/[id]`** — Update bucket configuration
+
+**DELETE `/api/admin/storage/buckets/[id]`** — Remove bucket configuration
+
+**POST `/api/admin/storage/buckets/[id]/test`** — Test S3 connectivity using `HeadBucketCommand`
+
+**POST `/api/admin/storage/test`** — Test S3 connectivity with provided credentials (not persisted)
+
+**PUT `/api/admin/storage/squads/[id]`** — Assign/clear a storage bucket for a squad
+
+```json
+{ "bucketId": "bucket_abc123" }
+```
+
+---
+
+### System API Key
+
+**GET `/api/admin/system-key`** — SuperAdmin only. Get system API key metadata (prefix and creation date). The full key is never returned after initial creation.
+
+**POST `/api/admin/system-key`** — SuperAdmin only. Generate or rotate the system API key. Returns the full key once as `esk_...`. Store it immediately.
+
+---
+
+### Integration Tests
+
+**POST `/api/admin/integrations/test`**
+
+Test third-party service connectivity.
+
+```json
+{ "integration": "stripe" }
+```
+
+Valid values: `"stripe"`, `"resend"`, `"cloudflare"`, `"discord"`, `"github"`, `"kener"`, `"smtp"`
+
+Returns `{ success, latencyMs, message }`.
+
+---
+
+### System Update Check
+
+**GET `/api/updates/check`**
+
+Compare the running version against the latest GitHub release.
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "hasUpdate": true,
+    "latestVersion": "1.5.0",
+    "currentVersion": "1.4.2"
+  }
+}
+```

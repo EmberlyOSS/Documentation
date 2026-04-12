@@ -4,7 +4,11 @@
   "pages": [
     "index",
     "files",
+    "urls",
     "domains",
+    "analytics",
+    "profile",
+    "discovery",
     "user-reference",
     "staff-admin-reference"
   ]

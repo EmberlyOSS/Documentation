@@ -3,11 +3,17 @@ title: API Reference
 description: The Emberly REST API — upload, manage, and serve files programmatically.
 ---
 
-The Emberly REST API lets you upload files, manage metadata, and configure custom domains from any language or tool.
+The Emberly REST API lets you upload files, shorten URLs, manage metadata, and configure custom domains from any language or tool.
 
 <Cards>
   <Card title="Files API" description="Upload, update, delete, and serve files." href="/docs/api/files" />
+  <Card title="URL Shortener API" description="Create and manage short links." href="/docs/api/urls" />
   <Card title="Domains API" description="Manage custom domains for your uploads." href="/docs/api/domains" />
+  <Card title="Analytics API" description="Storage stats, top files, and activity data." href="/docs/api/analytics" />
+  <Card title="Profile API" description="Manage security, tokens, linked accounts, and perks." href="/docs/api/profile" />
+  <Card title="Discovery API" description="Nexium profiles, squads, opportunities, and applications." href="/docs/api/discovery" />
+  <Card title="User API Reference" description="Comprehensive reference for all user-facing endpoints." href="/docs/api/user-reference" />
+  <Card title="Staff & Admin API" description="Admin-only endpoints for user management and moderation." href="/docs/api/staff-admin-reference" />
 </Cards>
 
 ## Base URL
@@ -27,7 +33,7 @@ Authorization: Bearer YOUR_UPLOAD_TOKEN
 Get your token from **Dashboard → Settings → Profile → Upload Token**.
 
 <Callout type="info">
-  Some endpoints (domains, profile) require a **session cookie** from a browser login rather than a token. These are noted per-endpoint.
+  Some endpoints (domains, profile, analytics) require a **session cookie** from a browser login rather than a token. These are noted per-endpoint.
 </Callout>
 
 ## Response Format

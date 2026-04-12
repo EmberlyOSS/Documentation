@@ -1,53 +1,50 @@
----
+﻿---
 title: Integration Examples
-description: Complete code examples for integrating with the Emberly API in various programming languages.
+description: Complete code examples for integrating with the Emberly API in Node.js, Python, Go, and Bash.
 ---
 
-Real-world examples of using the Emberly API in Node.js, Python, Go, Bash, and JavaScript.
+Real-world examples of using the Emberly API in Node.js, Python, Go, and Bash.
 
 ---
 
 ## Prerequisites
 
 All examples require:
-- **API Key** — Generate from dashboard `/settings/api-keys`
-- **Base URL** — `https://api.emberly.ca`
-- **Headers** — Include `Authorization: Bearer YOUR_API_KEY` and `Content-Type: application/json`
+- **Upload Token** — Find yours at **Dashboard → Settings → Profile → Upload Token**
+- **Base URL** — `https://embrly.ca/api`
+- **Auth header** — `Authorization: Bearer YOUR_UPLOAD_TOKEN`
+
+<Callout type="info">
+  Some endpoints (profile, domains, analytics) require a browser session cookie rather than a bearer token. These are used by the dashboard and are not typical for external integrations. The examples below cover bearer-token endpoints.
+</Callout>
 
 ---
 
 ## Node.js / JavaScript
 
-### Installation
-
-```bash
-npm install axios form-data
-# or use built-in fetch (Node 18+)
-```
-
 ### Basic Setup
 
 ```javascript
-const axios = require('axios');
+// api.js
+const BASE_URL = "https://embrly.ca/api";
+const TOKEN = process.env.EMBERLY_TOKEN;
 
-const api = axios.create({
-  baseURL: 'https://api.emberly.ca',
-  headers: {
-    'Authorization': `Bearer ${process.env.EMBERLY_API_KEY}`,
-    'Content-Type': 'application/json'
-  }
-});
+async function apiRequest(method, path, body, isForm = false) {
+  const headers = { Authorization: `Bearer ${TOKEN}` };
+  if (body && !isForm) headers["Content-Type"] = "application/json";
 
-// Handle errors consistently
-api.interceptors.response.use(
-  response => response.data,
-  error => {
-    const message = error.response?.data?.error || error.message;
-    throw new Error(`API Error: ${message}`);
-  }
-);
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: isForm ? body : body ? JSON.stringify(body) : undefined,
+  });
 
-module.exports = api;
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error || "API error");
+  return json.data ?? json;
+}
+
+module.exports = { apiRequest };
 ```
 
 ---
@@ -55,163 +52,112 @@ module.exports = api;
 ### Example 1: Upload a File
 
 ```javascript
-const FormData = require('form-data');
-const fs = require('fs');
-const axios = require('axios');
+const { apiRequest } = require("./api");
+const fs = require("fs");
+const path = require("path");
 
-async function uploadFile() {
-  const formData = new FormData();
-  formData.append('file', fs.createReadStream('document.pdf'));
-  formData.append('name', 'My Document');
-  formData.append('expiresIn', '30d'); // expires in 30 days
+async function uploadFile(filePath, options = {}) {
+  const form = new FormData();
+  form.append("file", new Blob([fs.readFileSync(filePath)]), path.basename(filePath));
+  if (options.visibility) form.append("visibility", options.visibility);
+  if (options.password)   form.append("password", options.password);
+  if (options.expiresAt)  form.append("expiresAt", options.expiresAt);
 
-  try {
-    const response = await axios.post(
-      'https://api.emberly.ca/files/upload',
-      formData,
-      {
-        headers: {
-          ...formData.getHeaders(),
-          'Authorization': `Bearer ${process.env.EMBERLY_API_KEY}`
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentComplete = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          console.log(`Upload progress: ${percentComplete}%`);
-        }
-      }
-    );
+  const headers = { Authorization: `Bearer ${process.env.EMBERLY_TOKEN}` };
+  const res = await fetch("https://embrly.ca/api/files", {
+    method: "POST",
+    headers,
+    body: form,
+  });
 
-    console.log('File uploaded:', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Upload failed:', error.response?.data || error.message);
-    throw error;
-  }
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error);
+
+  console.log("Uploaded:", json.data.url);
+  return json.data;
 }
 
-uploadFile();
+// Upload a private file that expires in 30 days
+uploadFile("document.pdf", {
+  visibility: "PRIVATE",
+  expiresAt: new Date(Date.now() + 30 * 86400_000).toISOString(),
+});
 ```
 
 ---
 
-### Example 2: List User's Files
+### Example 2: Shorten a URL
 
 ```javascript
-const api = require('./api-setup');
+const { apiRequest } = require("./api");
 
-async function listFiles() {
-  try {
-    const files = await api.get('/files');
-    
-    console.log(`Found ${files.data.length} files:`);
-    files.data.forEach(file => {
-      console.log(`- ${file.name} (${file.size} bytes, ${file.type})`);
-      console.log(`  URL: ${file.url}`);
-      console.log(`  Created: ${new Date(file.createdAt).toLocaleString()}`);
-    });
-    
-    return files.data;
-  } catch (error) {
-    console.error('Failed to list files:', error.message);
-    throw error;
-  }
+async function shortenUrl(longUrl) {
+  const result = await apiRequest("POST", "/urls", { url: longUrl });
+  console.log("Short URL:", result.shortUrl);
+  return result;
 }
 
-listFiles();
+shortenUrl("https://example.com/very/long/path/to/something");
 ```
 
 ---
 
-### Example 3: Download a File from URL
+### Example 3: Delete a File
 
 ```javascript
-const axios = require('axios');
-const fs = require('fs');
+const { apiRequest } = require("./api");
 
-async function downloadFile(fileUrl, outputPath) {
-  try {
-    const response = await axios.get(fileUrl, {
-      responseType: 'stream',
-      headers: {
-        'Authorization': `Bearer ${process.env.EMBERLY_API_KEY}`
-      }
-    });
-
-    const writer = fs.createWriteStream(outputPath);
-    response.data.pipe(writer);
-
-    return new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
-    });
-  } catch (error) {
-    console.error('Download failed:', error.message);
-    throw error;
-  }
+async function deleteFile(fileId) {
+  await apiRequest("DELETE", `/files/${fileId}`);
+  console.log(`File ${fileId} deleted`);
 }
 
-downloadFile('https://file.emberly.ca/files/abc123', './downloaded.pdf')
-  .then(() => console.log('Download complete'))
-  .catch(error => console.error(error));
+deleteFile("cm7xabc123");
 ```
 
 ---
 
-### Example 4: Create a Shortened URL
+### Example 4: Set File Expiry
 
 ```javascript
-const api = require('./api-setup');
+const { apiRequest } = require("./api");
 
-async function createShortenedUrl(fileId) {
-  try {
-    const url = await api.post('/urls/create', {
-      fileId: fileId,
-      customAlias: 'my-custom-link', // optional
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    });
-
-    console.log('Shortened URL created:');
-    console.log(`Short: https://embrly.ca/${url.data.alias}`);
-    console.log(`Original: ${url.data.originalUrl}`);
-    
-    return url.data;
-  } catch (error) {
-    console.error('Failed to create shortened URL:', error.message);
-    throw error;
-  }
+async function setExpiry(fileId, expiresAt, action = "delete") {
+  // action: "delete" | "make_private"
+  const result = await apiRequest("POST", `/files/${fileId}/expiry`, {
+    expiresAt,
+    action,
+  });
+  console.log("Expiry set:", result);
+  return result;
 }
 
-createShortenedUrl('file_123abc');
+// Expire in 7 days with auto-delete
+setExpiry(
+  "cm7xabc123",
+  new Date(Date.now() + 7 * 86400_000).toISOString(),
+  "delete"
+);
 ```
 
 ---
 
-### Example 5: Add a Collaborator
+### Example 5: Add a File Collaborator
 
 ```javascript
-const api = require('./api-setup');
+const { apiRequest } = require("./api");
 
-async function addCollaborator(fileId, collaboratorEmail, permissions) {
-  try {
-    const result = await api.post(`/files/${fileId}/collaborators`, {
-      email: collaboratorEmail,
-      permissions: permissions // 'view' or 'edit'
-    });
-
-    console.log(`Added ${collaboratorEmail} as collaborator`);
-    console.log(`Permissions: ${permissions}`);
-    
-    return result.data;
-  } catch (error) {
-    console.error('Failed to add collaborator:', error.message);
-    throw error;
-  }
+async function addCollaborator(fileId, userId, role = "VIEW") {
+  // role: "VIEW" | "EDIT"
+  const result = await apiRequest("POST", `/files/${fileId}/collaborators`, {
+    userId,
+    role,
+  });
+  console.log("Collaborator added:", result);
+  return result;
 }
 
-// Usage
-addCollaborator('file_123abc', 'colleague@example.com', 'edit');
+addCollaborator("cm7xabc123", "user_456", "EDIT");
 ```
 
 ---
@@ -221,44 +167,35 @@ addCollaborator('file_123abc', 'colleague@example.com', 'edit');
 ### Installation
 
 ```bash
-pip install requests python-dotenv
+pip install requests
 ```
-
----
 
 ### Basic Setup
 
 ```python
-import requests
+# emberly.py
 import os
-from dotenv import load_dotenv
+import requests
 
-load_dotenv()
+BASE_URL = "https://embrly.ca/api"
+TOKEN = os.environ["EMBERLY_TOKEN"]
+SESSION = requests.Session()
+SESSION.headers.update({"Authorization": f"Bearer {TOKEN}"})
 
-class EmberyAPI:
-    def __init__(self):
-        self.base_url = 'https://api.emberly.ca'
-        self.headers = {
-            'Authorization': f"Bearer {os.getenv('EMBERLY_API_KEY')}",
-            'Content-Type': 'application/json'
-        }
+def api_get(path, **kwargs):
+    r = SESSION.get(f"{BASE_URL}{path}", **kwargs)
+    r.raise_for_status()
+    return r.json()
 
-    def request(self, method, endpoint, **kwargs):
-        url = f"{self.base_url}{endpoint}"
-        response = requests.request(method, url, headers=self.headers, **kwargs)
-        response.raise_for_status()
-        return response.json()
+def api_post(path, **kwargs):
+    r = SESSION.post(f"{BASE_URL}{path}", **kwargs)
+    r.raise_for_status()
+    return r.json()
 
-    def get(self, endpoint, **kwargs):
-        return self.request('GET', endpoint, **kwargs)
-
-    def post(self, endpoint, **kwargs):
-        return self.request('POST', endpoint, **kwargs)
-
-    def delete(self, endpoint, **kwargs):
-        return self.request('DELETE', endpoint, **kwargs)
-
-api = EmberyAPI()
+def api_delete(path, **kwargs):
+    r = SESSION.delete(f"{BASE_URL}{path}", **kwargs)
+    r.raise_for_status()
+    return r.json()
 ```
 
 ---
@@ -266,126 +203,88 @@ api = EmberyAPI()
 ### Example 1: Upload a File
 
 ```python
+from emberly import api_post
+import os
+from datetime import datetime, timedelta, timezone
+
+def upload_file(file_path, visibility="PUBLIC", password=None, expires_at=None):
+    with open(file_path, "rb") as f:
+        files = {"file": (os.path.basename(file_path), f)}
+        data = {"visibility": visibility}
+        if password:   data["password"] = password
+        if expires_at: data["expiresAt"] = expires_at
+
+        result = api_post("/files", files=files, data=data)
+
+    print(f"Uploaded: {result['data']['url']}")
+    return result["data"]
+
+# Upload with a 30-day expiry
+expiry = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+upload_file("report.pdf", visibility="PRIVATE", expires_at=expiry)
+```
+
+---
+
+### Example 2: Shorten a URL
+
+```python
+from emberly import api_post
+
+def shorten_url(long_url):
+    result = api_post("/urls", json={"url": long_url})
+    print(f"Short URL: {result['data']['shortUrl']}")
+    return result["data"]
+
+shorten_url("https://example.com/really/long/url")
+```
+
+---
+
+### Example 3: Download a File
+
+```python
 import requests
+import os
+
+def download_file(file_url, output_path, password=None):
+    """Download a file from its Emberly URL."""
+    params = {"download": "1"}
+    if password:
+        params["password"] = password
+
+    r = requests.get(file_url, params=params, stream=True)
+    r.raise_for_status()
+
+    with open(output_path, "wb") as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    print(f"Downloaded to {output_path}")
+
+download_file("https://embrly.ca/username/document.pdf", "./document.pdf")
+```
+
+---
+
+### Example 4: Batch Upload a Directory
+
+```python
 from pathlib import Path
 
-def upload_file(file_path, name=None, expires_in='30d'):
-    url = 'https://api.emberly.ca/files/upload'
-    headers = {
-        'Authorization': f"Bearer {os.getenv('EMBERLY_API_KEY')}"
-    }
-    
-    with open(file_path, 'rb') as f:
-        files = {'file': (name or Path(file_path).name, f)}
-        data = {
-            'name': name or Path(file_path).name,
-            'expiresIn': expires_in
-        }
-        
-        response = requests.post(url, files=files, data=data, headers=headers)
-        response.raise_for_status()
-        
-        file_data = response.json()
-        print(f"Uploaded: {file_data['name']}")
-        print(f"URL: {file_data['url']}")
-        return file_data
+def batch_upload(directory, visibility="PUBLIC"):
+    results = []
+    for p in Path(directory).iterdir():
+        if p.is_file():
+            try:
+                result = upload_file(str(p), visibility=visibility)
+                results.append({"file": p.name, "url": result["url"]})
+                print(f"  v {p.name} -> {result['url']}")
+            except Exception as e:
+                print(f"  x {p.name} -- {e}")
+    return results
 
-# Usage
-upload_file('document.pdf', name='My Document')
-```
-
----
-
-### Example 2: Get User Profile
-
-```python
-from api import api
-
-def get_profile():
-    profile = api.get('/user/profile')
-    
-    print(f"User: {profile['name']}")
-    print(f"Email: {profile['email']}")
-    print(f"Plan: {profile['plan']}")
-    print(f"Storage Used: {profile['storageUsed']} bytes")
-    print(f"Storage Limit: {profile['storageLimit']} bytes")
-    
-    return profile
-
-get_profile()
-```
-
----
-
-### Example 3: List and Filter Files
-
-```python
-from api import api
-from datetime import datetime, timedelta
-
-def list_files_with_filters():
-    # Get all files
-    response = api.get('/files')
-    files = response.get('data', [])
-    
-    # Filter by date (modified in last 7 days)
-    week_ago = datetime.now() - timedelta(days=7)
-    recent_files = [
-        f for f in files 
-        if datetime.fromisoformat(f['updatedAt']) > week_ago
-    ]
-    
-    print(f"Recent files ({len(recent_files)}):")
-    for file in recent_files:
-        size_mb = file['size'] / (1024 * 1024)
-        print(f"  - {file['name']} ({size_mb:.2f} MB)")
-    
-    # Filter by type
-    images = [f for f in files if f['type'].startswith('image/')]
-    documents = [f for f in files if f['type'] in ['application/pdf', 'application/msword']]
-    
-    print(f"\nImages: {len(images)}")
-    print(f"Documents: {len(documents)}")
-    
-    return recent_files
-
-list_files_with_filters()
-```
-
----
-
-### Example 4: Enable 2FA and Get Recovery Codes
-
-```python
-from api import api
-
-def enable_two_factor():
-    # Generate 2FA secret
-    response = api.post('/user/2fa/generate')
-    
-    secret = response['secret']
-    qr_codes = response['qrCode']
-    
-    print("Scan this QR code in your authenticator app:")
-    print(f"Base64: {qr_codes}")
-    
-    # In a real app, show the QR code to user and have them verify
-    # For this example, we'll need them to provide the verification code
-    verification_code = input("Enter the 6-digit code from your authenticator: ")
-    
-    # Verify and enable
-    verify_response = api.post('/user/2fa/enable', json={
-        'token': verification_code
-    })
-    
-    recovery_codes = verify_response['recoveryCodes']
-    print("\nWARNING: Save these recovery codes in a safe place:")
-    for code in recovery_codes:
-        print(f"  {code}")
-    
-    return recovery_codes
-
-enable_two_factor()
+batch_upload("./screenshots")
 ```
 
 ---
@@ -398,83 +297,83 @@ enable_two_factor()
 go get github.com/go-resty/resty/v2
 ```
 
----
-
 ### Basic Setup
 
 ```go
 package main
 
 import (
-  "github.com/go-resty/resty/v2"
-  "os"
+    "os"
+    "github.com/go-resty/resty/v2"
 )
 
-type EmberyClient struct {
-  client *resty.Client
+var client = resty.New().
+    SetBaseURL("https://embrly.ca/api").
+    SetHeader("Authorization", "Bearer "+os.Getenv("EMBERLY_TOKEN"))
+```
+
+---
+
+### Example 1: Upload a File
+
+```go
+package main
+
+import "fmt"
+
+type UploadResponse struct {
+    Success bool `json:"success"`
+    Data    struct {
+        ID         string `json:"id"`
+        URL        string `json:"url"`
+        Name       string `json:"name"`
+        Visibility string `json:"visibility"`
+    } `json:"data"`
 }
 
-func NewEmberyClient() *EmberyClient {
-  client := resty.New().
-    SetBaseURL("https://api.emberly.ca").
-    SetHeader("Authorization", "Bearer " + os.Getenv("EMBERLY_API_KEY")).
-    SetHeader("Content-Type", "application/json")
-  
-  return &EmberyClient{client: client}
-}
-
-func (e *EmberyClient) ListFiles() ([]map[string]interface{}, error) {
-  var files []map[string]interface{}
-  _, err := e.client.R().
-    SetResult(&files).
-    Get("/files")
-  
-  return files, err
+func uploadFile(filePath, visibility string) (*UploadResponse, error) {
+    result := &UploadResponse{}
+    _, err := client.R().
+        SetFile("file", filePath).
+        SetFormData(map[string]string{"visibility": visibility}).
+        SetResult(result).
+        Post("/files")
+    if err != nil {
+        return nil, err
+    }
+    fmt.Println("Uploaded:", result.Data.URL)
+    return result, nil
 }
 ```
 
 ---
 
-### Example 1: Upload File
+### Example 2: Create a Short URL
 
 ```go
 package main
 
-import (
-  "fmt"
-  "os"
-)
+import "fmt"
 
-func (e *EmberyClient) UploadFile(filePath string, name string) error {
-  file, err := os.Open(filePath)
-  if err != nil {
-    return err
-  }
-  defer file.Close()
-
-  resp, err := e.client.R().
-    SetFileReader("file", name, file).
-    SetFormData(map[string]string{
-      "name": name,
-      "expiresIn": "30d",
-    }).
-    Post("/files/upload")
-
-  if err != nil {
-    return err
-  }
-
-  fmt.Printf("Upload response: %v\n", resp)
-  return nil
+type URLResponse struct {
+    Success bool `json:"success"`
+    Data    struct {
+        ShortURL  string `json:"shortUrl"`
+        ShortCode string `json:"shortCode"`
+    } `json:"data"`
 }
 
-// Usage
-func main() {
-  client := NewEmberyClient()
-  err := client.UploadFile("document.pdf", "My Document")
-  if err != nil {
-    panic(err)
-  }
+func shortenURL(longURL string) (*URLResponse, error) {
+    result := &URLResponse{}
+    _, err := client.R().
+        SetBody(map[string]string{"url": longURL}).
+        SetResult(result).
+        Post("/urls")
+    if err != nil {
+        return nil, err
+    }
+    fmt.Println("Short URL:", result.Data.ShortURL)
+    return result, nil
 }
 ```
 
@@ -482,208 +381,133 @@ func main() {
 
 ## Bash / cURL
 
-### Basic Pattern
+### Setup
 
 ```bash
 #!/bin/bash
+export EMBERLY_TOKEN="your_upload_token_here"
+BASE="https://embrly.ca/api"
+```
 
-API_KEY="${EMBERLY_API_KEY}"
-BASE_URL="https://api.emberly.ca"
+### Example 1: Upload a File
 
-# Helper function
-emberly_api() {
-  local method=$1
-  local endpoint=$2
-  local data=$3
+```bash
+upload_file() {
+  local file="$1"
+  local visibility="${2:-PUBLIC}"
 
-  local args=(
-    -X "$method"
-    -H "Authorization: Bearer $API_KEY"
-    -H "Content-Type: application/json"
-  )
-
-  if [ -n "$data" ]; then
-    args+=(-d "$data")
-  fi
-
-  curl "${args[@]}" "$BASE_URL$endpoint"
+  curl -s -X POST \
+    -H "Authorization: Bearer $EMBERLY_TOKEN" \
+    -F "file=@${file}" \
+    -F "visibility=${visibility}" \
+    "${BASE}/files" | jq -r '.data.url'
 }
+
+# Upload and copy URL to clipboard
+URL=$(upload_file "screenshot.png" "PUBLIC")
+echo "Uploaded: $URL"
+echo "$URL" | xclip -selection clipboard 2>/dev/null || echo "$URL" | pbcopy 2>/dev/null
 ```
 
 ---
 
-### Example 1: Upload File
+### Example 2: Shorten a URL
 
 ```bash
-#!/bin/bash
-
-API_KEY="${EMBERLY_API_KEY}"
-
-curl -X POST \
-  -H "Authorization: Bearer $API_KEY" \
-  -F "file=@document.pdf" \
-  -F "name=My Document" \
-  -F "expiresIn=30d" \
-  https://api.emberly.ca/files/upload | jq .
-```
-
----
-
-### Example 2: List Files and Pretty-Print
-
-```bash
-#!/bin/bash
-
-API_KEY="${EMBERLY_API_KEY}"
-
-curl -s -X GET \
-  -H "Authorization: Bearer $API_KEY" \
-  https://api.emberly.ca/files | \
-  jq '.[] | "\(.name) (\(.size) bytes) - \(.url)"'
-```
-
----
-
-### Example 3: Get User Profile
-
-```bash
-#!/bin/bash
-
-API_KEY="${EMBERLY_API_KEY}"
-
-curl -s -X GET \
-  -H "Authorization: Bearer $API_KEY" \
-  https://api.emberly.ca/user/profile | \
-  jq '{
-    name: .name,
-    email: .email,
-    plan: .plan,
-    storageUsedGB: (.storageUsed / 1073741824 | round),
-    storageLimitGB: (.storageLimit / 1073741824 | round)
-  }'
-```
-
-Output:
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "plan": "flare",
-  "storageUsedGB": 12,
-  "storageLimitGB": 50
+shorten() {
+  local url="$1"
+  curl -s -X POST \
+    -H "Authorization: Bearer $EMBERLY_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d "{\"url\": \"${url}\"}" \
+    "${BASE}/urls" | jq -r '.data.shortUrl'
 }
+
+shorten "https://example.com/my/very/long/link"
 ```
 
 ---
 
-### Example 4: Create Shortened URL
+### Example 3: Delete a File
 
 ```bash
-#!/bin/bash
+delete_file() {
+  local file_id="$1"
+  curl -s -X DELETE \
+    -H "Authorization: Bearer $EMBERLY_TOKEN" \
+    "${BASE}/files/${file_id}" | jq .
+}
 
-API_KEY="${EMBERLY_API_KEY}"
-FILE_ID="file_123abc"
-
-curl -s -X POST \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fileId": "'$FILE_ID'",
-    "customAlias": "my-project-docs",
-    "expiresAt": "'$(date -u -d '+30 days' +%Y-%m-%dT%H:%M:%SZ)'"
-  }' \
-  https://api.emberly.ca/urls/create | \
-  jq '{short: "https://embrly.ca/\(.alias)", original: .originalUrl}'
+delete_file "cm7xabc123"
 ```
 
 ---
 
-## Error Handling Examples
+### Example 4: Upload from Screenshot
 
-### JavaScript
+```bash
+# From scrot (Linux)
+scrot -s /tmp/shot.png && upload_file /tmp/shot.png
+
+# From gnome-screenshot
+gnome-screenshot -a -f /tmp/shot.png && upload_file /tmp/shot.png
+
+# From macOS screencapture
+screencapture -i /tmp/shot.png && upload_file /tmp/shot.png
+```
+
+---
+
+## Error Handling
+
+All API errors return `{ "success": false, "error": "..." }`.
 
 ```javascript
-async function handleErrors() {
-  try {
-    const response = await api.post('/files/upload', data);
-  } catch (error) {
-    if (error.response?.status === 401) {
-      console.error('Authentication failed. Check your API key.');
-    } else if (error.response?.status === 403) {
-      console.error('Permission denied.');
-    } else if (error.response?.status === 429) {
-      console.error('Rate limited. Wait before retrying.');
-      // Implement exponential backoff
-    } else if (error.response?.status === 500) {
-      console.error('Server error. Try again later.');
-    } else {
-      console.error(error.response?.data?.error || error.message);
-    }
-  }
+// JavaScript
+const res = await fetch("https://embrly.ca/api/files", { method: "POST", ... });
+const json = await res.json();
+
+if (!json.success) {
+  if (res.status === 401) throw new Error("Invalid or expired upload token");
+  if (res.status === 403) throw new Error("Quota exceeded or plan limit reached");
+  if (res.status === 413) throw new Error("File too large for your plan");
+  if (res.status === 429) throw new Error("Rate limited — slow down and retry");
+  throw new Error(json.error);
 }
 ```
-
----
-
-### Python
 
 ```python
-def handle_errors(func):
-  def wrapper(*args, **kwargs):
-    try:
-      return func(*args, **kwargs)
-    except requests.exceptions.HTTPError as e:
-      status = e.response.status_code
-      if status == 401:
-        print("Authentication failed")
-      elif status == 403:
-        print("Permission denied")
-      elif status == 429:
-        print("Rate limited")
-      else:
-        print(f"Error: {e.response.json()['error']}")
-  return wrapper
-
-@handle_errors
-def api_call():
-  response = requests.get(...)
-  response.raise_for_status()
+# Python
+try:
+    r.raise_for_status()
+except requests.HTTPError as e:
+    body = e.response.json()
+    raise RuntimeError(body.get("error", str(e)))
 ```
 
 ---
 
-## Rate Limiting
+## Rate Limits
 
-All API calls are rate-limited to prevent abuse.
+| Plan | Uploads/min | API Requests/min |
+|------|------------|-----------------|
+| Spark | 10 | 60 |
+| Glow+ | Higher | Higher |
+| Enterprise | Unlimited | Unlimited |
 
-**Limits:**
-- **Authenticated requests:** 1,000 requests per hour
-- **Unauthenticated:** 100 requests per hour
-- **Upload endpoint:** 100 uploads per hour
-
-**Rate limit headers:**
+Rate limit headers:
 ```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 987
-X-RateLimit-Reset: 1234567890
-```
-
-**Handling rate limits:**
-```javascript
-// Extract retry-after
-const resetTime = parseInt(response.headers['X-RateLimit-Reset']) * 1000;
-const waitMs = resetTime - Date.now();
-
-// Wait and retry
-setTimeout(() => {
-  retryRequest();
-}, waitMs);
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 55
+X-RateLimit-Reset: 1745000000
 ```
 
 ---
 
 ## Next Steps
 
+- [Files API Reference](/docs/api/files)
+- [URL Shortener API](/docs/api/urls)
+- [Profile API Reference](/docs/api/profile)
 - [User API Reference](/docs/api/user-reference)
-- [Staff API Reference](/docs/api/staff-admin-reference)
-- [Webhook Documentation](/docs/integrations/webhooks)
+- [Webhooks](/docs/integrations/webhooks)
