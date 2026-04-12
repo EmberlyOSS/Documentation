@@ -46,23 +46,34 @@ Ensure you have installed:
 
 ## Repository Structure
 
+The Emberly repo is a single Next.js application:
+
 ```
-emberly/
-├── website/               # Next.js frontend + API (main project)
-├── documentation/         # Documentation site (Nextra)
-├── application/          # Tauri desktop app
-└── premid/              # PreMID integration
+Emberly/
+├── app/                  # Next.js app router (pages + API routes)
+├── packages/
+│   ├── components/       # Shared React components
+│   ├── hooks/            # Shared React hooks
+│   ├── lib/              # Business logic, utilities
+│   └── types/            # Shared TypeScript types
+├── prisma/
+│   ├── schema.prisma     # Database schema
+│   └── migrations/       # Migration history
+├── public/               # Static assets
+└── scripts/              # Utility scripts (e.g. seed-plans)
 ```
 
-This guide focuses on the **website** project, which contains both frontend and backend.
+<Callout type="info">
+  The documentation site ([docs.embrly.ca](https://docs.embrly.ca)), Flicker desktop app, and premid integration are **separate repositories** — not subdirectories of the main app.
+</Callout>
 
 ---
 
 ## Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/EmberlyOSS/Website.git
-cd Website
+git clone https://github.com/EmberlyOSS/Emberly.git
+cd Emberly
 ```
 
 ## Step 2: Install Dependencies
@@ -77,20 +88,15 @@ Or using **npm**:
 npm install
 ```
 
-Or using **yarn**:
-```bash
-yarn install
-```
-
 Installation takes ~5-10 minutes on first run.
 
 ---
 
-## Step 3: Set Up Database
+## Step 3: Set Up Services
 
-### Option A: Local PostgreSQL
+### PostgreSQL
 
-**Start PostgreSQL** (if not already running):
+**Option A: Local PostgreSQL**
 
 **macOS (with Homebrew):**
 ```bash
@@ -155,6 +161,34 @@ docker-compose up -d postgres
 docker-compose down
 ```
 
+### Redis
+
+Redis is required for chunked upload sessions and caching. If unavailable, the app falls back to filesystem storage for uploads.
+
+**Option A: Local Redis**
+```bash
+# macOS
+brew install redis
+brew services start redis
+
+# Ubuntu/Debian
+sudo apt-get install redis-server
+sudo systemctl start redis
+```
+
+**Option B: Docker**
+```yaml
+# Add to docker-compose.yml
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+```
+
+```bash
+docker-compose up -d redis
+```
+
 ---
 
 ## Step 4: Configuration
@@ -199,7 +233,16 @@ RESEND_FROM_EMAIL="dev@example.com"
 # VirusTotal (optional)
 VIRUSTOTAL_API_KEY="your-virustotal-api-key"
 
-# Cloudflare (optional - for custom domains)
+# Redis (required for chunked uploads and caching)
+REDIS_URL="redis://localhost:6379"
+
+# Sentry error tracking (optional)
+NEXT_PUBLIC_SENTRY_DSN="https://...@sentry.io/..."
+SENTRY_ORG="your-sentry-org"
+SENTRY_PROJECT="your-sentry-project"
+SENTRY_AUTH_TOKEN="sntrys_..."
+
+# Cloudflare (for custom domains)
 CLOUDFLARE_ZONE_ID="your-zone-id"
 CLOUDFLARE_ZONE_API_TOKEN="your-api-token"
 CNAME_TARGET="cname.yourdomain.local"
@@ -264,27 +307,45 @@ CLOUDFLARE_ZONE_ID="..."
 CLOUDFLARE_ZONE_API_TOKEN="..."
 CNAME_TARGET="cname.yourdomain.com"
 
-# VirusTotal (optional)
-VIRUSTOTAL_API_KEY="..."
+# Redis (required for chunked uploads)
+REDIS_URL="redis://localhost:6379"
+
+# Sentry (optional)
+NEXT_PUBLIC_SENTRY_DSN="https://...@sentry.io/..."
+SENTRY_ORG="your-org"
+SENTRY_PROJECT="emberly"
+SENTRY_AUTH_TOKEN="sntrys_..."
 ```
+
+<Callout type="info" title="Admin UI configuration">
+  Many integrations (Stripe, Cloudflare, GitHub, Discord, Kener, and email) can also be configured after first run via the **Admin Panel → Settings** UI. Values set there are stored in the database and override environment variables. You only need `.env` values for the initial setup.
+</Callout>
 
 ---
 
 ## Project Structure
 
 ```
-Website/
+Emberly/
 ├── app/                        # Next.js app router
 │   ├── api/                    # API routes
 │   │   ├── files/              # File upload/management
 │   │   ├── domains/            # Custom domain API
+│   │   ├── urls/               # URL shortener
+│   │   ├── discovery/          # Nexium API
+│   │   ├── payments/           # Stripe billing
 │   │   └── auth/               # Authentication
-│   └── (main)/                 # Dashboard pages
+│   ├── (main)/                 # Dashboard + public pages
+│   └── (shorturl)/             # Short URL redirect handler
 ├── packages/
 │   ├── components/             # Shared React components
-│   └── lib/                    # Business logic, utilities
+│   ├── hooks/                  # Shared React hooks
+│   ├── lib/                    # Business logic, utilities
+│   └── types/                  # Shared TypeScript types
 ├── prisma/
-│   └── schema.prisma           # Database schema
+│   ├── schema.prisma           # Database schema
+│   └── migrations/             # Migration history
+├── scripts/                    # Utility scripts (e.g. seed-plans)
 └── public/                     # Static assets
 ```
 
@@ -310,23 +371,53 @@ API Route → S3 Storage
          → OCR (background)
 ```
 
+Chunked uploads:
+```
+POST /api/files/chunks → Redis (session) → S3 multipart
+POST /api/files/chunks/[id]/complete → finalize → Prisma
+```
+
 ---
 
 ## Database Management
 
 ```bash
 # Run migrations
-bunx prisma migrate dev
+bun run db:migrate
 
-# Reset database (development only)
-bunx prisma migrate reset
+# Push schema changes without migration history (prototype)
+bun run db:push
 
-# Explore data
-bunx prisma studio
+# Reset database (development only — DELETES ALL DATA)
+bun run db:migrate -- --force
 
-# Generate Prisma client after schema changes
-bunx prisma generate
+# Explore data in browser UI
+bun run db:studio
+
+# Regenerate Prisma client after schema changes
+bun run db:generate
+
+# Seed plans (required after fresh setup)
+bun run db:seed
 ```
+
+---
+
+## First Run: Setup Wizard
+
+On the first server start with an empty database, Emberly redirects to **/setup** — a guided wizard that:
+
+1. Creates the initial **admin account** (username, email, password)
+2. Configures **storage** (local filesystem or S3-compatible)
+3. Configures **registration** settings (open or invite-only)
+
+Complete the wizard before using the application. After setup, seed the subscription plans:
+
+```bash
+bun run db:seed
+```
+
+This creates the Spark/Glow/Flare/Blaze/Inferno/Ember plan records in the database.
 
 ---
 
@@ -347,6 +438,6 @@ For production deployments, consider:
 
 ---
 
-## Tauri Desktop App
+## Flicker Desktop App
 
-The companion desktop uploader is in the `application/` workspace folder — a separate Tauri v2 project. See the [Tauri Uploader guide](/docs/integrations/tauri-uploader) for its setup.
+Flicker is a **separate repository** — [EmberlyOSS/Flicker](https://github.com/EmberlyOSS/Flicker). Clone it independently and follow its own setup instructions. See the [Flicker guide](/docs/integrations/flicker) for details.

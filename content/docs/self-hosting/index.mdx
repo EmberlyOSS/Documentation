@@ -8,6 +8,7 @@ Emberly is fully open source. You can self-host your own instance with full cont
 <Cards>
   <Card title="Development Setup" description="Get the development environment running locally." href="/docs/self-hosting/development" />
   <Card title="Cloudflare Setup" description="Configure Cloudflare for custom domain SSL provisioning." href="/docs/self-hosting/cloudflare" />
+  <Card title="Contributing" description="How to contribute code, fixes, and improvements." href="/docs/self-hosting/contributing" />
 </Cards>
 
 ## Overview
@@ -18,23 +19,25 @@ The Emberly platform consists of:
 |-----------|-----------|-------------|
 | **Web application** | Next.js 15, React 18 | Main app, API routes, dashboard |
 | **Database** | PostgreSQL via Prisma | Users, files metadata, domains |
+| **Cache / Queue** | Redis | Chunked upload sessions, caching |
 | **File storage** | S3-compatible (AWS, Tigris, R2, MinIO) | Actual file storage |
 | **Authentication** | NextAuth.js | OAuth (GitHub, Discord, Google) + credentials |
-| **Email** | Resend | Transactional emails |
-| **CDN / Custom domains** | Cloudflare SSL-for-SaaS | Custom hostname SSL |
+| **Email** | Resend or SMTP | Transactional emails |
+| **CDN / Custom domains** | Cloudflare SSL-for-SaaS | Custom hostname SSL (optional) |
 
 ## Minimum Requirements
 
 - Node.js 18+
 - PostgreSQL 14+
+- Redis 7+
 - S3-compatible object storage
 - A Cloudflare zone (for custom domain features — optional)
 
 ## Source Code
 
-Emberly is hosted on GitHub: [EmberlyOSS/Website](https://github.com/EmberlyOSS/Website)
+Emberly is hosted on GitHub: [EmberlyOSS/Emberly](https://github.com/EmberlyOSS/Emberly)
 
 ```bash
-git clone https://github.com/EmberlyOSS/Website.git
-cd Website
+git clone https://github.com/EmberlyOSS/Emberly.git
+cd Emberly
 ```

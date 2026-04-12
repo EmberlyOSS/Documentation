@@ -5,9 +5,15 @@
     "index",
     "account-settings",
     "file-management",
+    "file-collaboration",
+    "paste",
     "url-shortener",
     "custom-domains",
     "teams-and-squads",
+    "storage-bucket",
+    "verification-codes",
+    "leaderboard",
+    "reporting",
     "contributor-perks",
     "discord-perks"
   ]
