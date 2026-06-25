@@ -1,0 +1,304 @@
+---
+title: Production Deployment
+description: Deploy a self-hosted Emberly instance to a Linux server using Docker Compose.
+---
+
+This guide covers deploying Emberly to a Linux server using Docker Compose. By the end you will have a running instance accessible over HTTPS with PostgreSQL, Redis, and S3-compatible file storage configured.
+
+## Prerequisites
+
+- A Linux server (Ubuntu 22.04 LTS recommended) with at least 2 GB RAM
+- A domain name pointing to your server's IP (`A` record)
+- Docker and Docker Compose installed
+- An S3-compatible object storage bucket (AWS S3, Cloudflare R2, Vultr Object Storage, Tigris, or self-hosted MinIO)
+
+---
+
+## Step 1: Server Preparation
+
+```bash
+# Update system
+sudo apt-get update && sudo apt-get upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Verify
+docker --version
+docker compose version
+```
+
+---
+
+## Step 2: Create the Project Directory
+
+```bash
+mkdir -p /opt/emberly && cd /opt/emberly
+```
+
+---
+
+## Step 3: Docker Compose File
+
+Create `/opt/emberly/docker-compose.yml`:
+
+```yaml
+services:
+  app:
+    image: ghcr.io/emberlyoss/emberly:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: emberly
+      POSTGRES_USER: emberly
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emberly -d emberly"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+<Callout type="info" title="Self-building from source">
+  If you prefer to build the image yourself: clone the repo, run `docker build -t emberly .`, and replace the `image:` line above with `build: .` or use `image: emberly`.
+</Callout>
+
+---
+
+## Step 4: Environment File
+
+Create `/opt/emberly/.env`:
+
+```env
+# Database
+DATABASE_URL="postgresql://emberly:${POSTGRES_PASSWORD}@postgres:5432/emberly?schema=public"
+POSTGRES_PASSWORD="choose-a-strong-password"
+
+# Redis
+REDIS_URL="redis://redis:6379"
+
+# Application
+NEXTAUTH_URL="https://yourdomain.com"
+NEXT_PUBLIC_BASE_URL="https://yourdomain.com"
+NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+NEXTAUTH_TRUSTED_ORIGINS="https://yourdomain.com"
+
+# OAuth providers (optional but recommended)
+GITHUB_OAUTH_CLIENT_ID=""
+GITHUB_OAUTH_CLIENT_SECRET=""
+DISCORD_OAUTH_CLIENT_ID=""
+DISCORD_OAUTH_CLIENT_SECRET=""
+
+# Features
+EMBERLY_RUN_CLOUD=false
+EMBERLY_RUN_EVENT_WORKER=true
+
+# Error tracking (optional)
+NEXT_PUBLIC_SENTRY_DSN=""
+```
+
+Generate a strong `NEXTAUTH_SECRET`:
+
+```bash
+openssl rand -base64 32
+```
+
+Set strict permissions on the env file:
+
+```bash
+chmod 600 /opt/emberly/.env
+```
+
+---
+
+## Step 5: Run Database Migrations
+
+Before starting the full stack, run migrations:
+
+```bash
+docker compose run --rm app bun run db:deploy
+docker compose run --rm app bun run db:seed
+```
+
+---
+
+## Step 6: Start the Stack
+
+```bash
+docker compose up -d
+```
+
+Check that all containers are healthy:
+
+```bash
+docker compose ps
+docker compose logs app --tail=50
+```
+
+The app is now running on port 3000. Open `http://YOUR_SERVER_IP:3000` and complete the **Setup Wizard** to create your admin account.
+
+---
+
+## Step 7: Reverse Proxy with HTTPS
+
+Use Nginx or Caddy to terminate TLS and proxy to port 3000. Caddy is simpler because it provisions Let's Encrypt certificates automatically.
+
+### Caddy (Recommended)
+
+Install Caddy, then create `/etc/caddy/Caddyfile`:
+
+```
+yourdomain.com {
+    reverse_proxy localhost:3000
+}
+```
+
+```bash
+sudo systemctl enable --now caddy
+sudo systemctl reload caddy
+```
+
+### Nginx + Certbot
+
+```bash
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+```
+
+Create `/etc/nginx/sites-available/emberly`:
+
+```nginx
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        client_max_body_size 0;   # Emberly enforces its own limits
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/emberly /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d yourdomain.com
+```
+
+---
+
+## Step 8: Configure Storage
+
+After the setup wizard completes, configure S3-compatible storage in **Admin Panel → Settings → Integrations → Storage**:
+
+| Field | Description |
+|-------|-------------|
+| Provider | AWS S3, Cloudflare R2, Vultr, Linode, MinIO, etc. |
+| Bucket name | The bucket to store files in |
+| Region | Your bucket's region |
+| Endpoint | Custom endpoint (leave blank for AWS) |
+| Access key ID | Storage access key |
+| Secret access key | Storage secret key |
+| Public files URL | The CDN/public URL prefix for served files |
+
+<Callout type="info">
+  The public files URL is what gets prepended to file paths in share links. For Cloudflare R2, this is your R2 public bucket URL or a custom domain. For AWS, it is the bucket's public URL or a CloudFront distribution.
+</Callout>
+
+---
+
+## Step 9: Configure Email
+
+In **Admin Panel → Settings → Integrations → Email**, configure Resend or SMTP:
+
+**Resend:**
+- Get an API key from [resend.com](https://resend.com)
+- Set the from address (must be on a verified domain)
+
+**SMTP:**
+- Use any SMTP provider (Postmark, Mailgun, Gmail, etc.)
+- Set host, port, username, and password
+
+Email is used for verification emails, expiration reminders, and collaborator invites.
+
+---
+
+## Step 10: Optional Integrations
+
+Configure these in the Admin Panel as needed:
+
+| Integration | Purpose |
+|-------------|---------|
+| Stripe | Billing and subscription plans |
+| VirusTotal | File malware scanning |
+| Cloudflare | Custom domain TLS provisioning |
+| Sentry | Error tracking |
+
+---
+
+## Updating
+
+```bash
+cd /opt/emberly
+docker compose pull
+docker compose run --rm app bun run db:deploy
+docker compose up -d
+```
+
+Always run migrations before restarting the app on an update.
+
+---
+
+## Backups
+
+Back up the PostgreSQL database regularly:
+
+```bash
+docker compose exec postgres pg_dump -U emberly emberly > backup-$(date +%F).sql
+```
+
+Also back up your S3 bucket. Use your provider's snapshot or bucket replication features.
+
+---
+
+## Troubleshooting
+
+| Problem | Check |
+|---------|-------|
+| App won't start | `docker compose logs app` — look for missing env vars or DB connection errors |
+| Database connection error | Verify `DATABASE_URL` and that the postgres container is healthy (`docker compose ps`) |
+| Uploads fail | Check storage configuration in Admin Panel; verify bucket permissions and public URL |
+| Email not sending | Verify Resend API key or SMTP credentials in Admin Panel |
+| Custom domains not working | See [Cloudflare Setup](/docs/self-hosting/cloudflare) |

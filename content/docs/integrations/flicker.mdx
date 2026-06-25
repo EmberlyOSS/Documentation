@@ -63,7 +63,7 @@ bun run dev
 6. You're all set.
 
 **Alternative: Use Upload Token**
-1. Go to [Emberly Dashboard](https://emberly.ca/dashboard) → **Settings → Profile**
+1. Go to [embrly.ca](https://embrly.ca) → **Settings → Profile**
 2. Copy your **Upload Token**
 3. In Flicker, go to **Settings → Account → Enter Token**
 4. Paste the token and save
@@ -136,7 +136,7 @@ Region screenshot features coming in v0.2.0.
 ```json
 {
   "filename": "Screenshot_2026-01-15_14-30-45.png",
-  "url": "https://files.emberly.ca/abc123xyz",
+  "url": "https://files.embrly.ca/abc123xyz",
   "uploadedAt": "2026-01-15 14:30:47",
   "size": "245.3 KB",
   "visibility": "public",
@@ -235,16 +235,16 @@ Hover for info →              Full filename and size tooltip
 ```
 After screenshot uploads, automatically:
 - Copy URL               (recommended, default)
-- Open in browser       (opens emberly.ca link)
+- Open in browser       (opens embrly.ca link)
 - Do nothing            (silent upload)
 ```
 
 **Clipboard Format:**
 ```
 When copying URL, format as:
-- Plain URL             https://files.emberly.ca/abc123
+- Plain URL             https://files.embrly.ca/abc123
 - Raw URL               (same as above)
-- Markdown              [Screenshot](https://files.emberly.ca/abc123)
+- Markdown              [Screenshot](https://files.embrly.ca/abc123)
 - HTML                  <a href="...">Screenshot</a>
 ```
 
@@ -452,13 +452,13 @@ Ctrl+Alt+E           Toggle app window visibility
 
 1. **Check internet connection:**
    ```
-   Windows: Open Command Prompt → `ping emberly.ca`
-   macOS/Linux: `ping emberly.ca`
+   Windows: Open Command Prompt → `ping embrly.ca`
+   macOS/Linux: `ping embrly.ca`
    ```
    Should show responses, not "unreachable"
 
 2. **Check if Emberly is down:**
-   - Visit https://emberly.ca in browser
+   - Visit https://embrly.ca in browser
    - If site is down, wait for it to come back online
 
 3. **Verify authentication:**
@@ -543,7 +543,7 @@ This is required for system-wide hotkey capture.
 
 **If still crashing:**
 1. Clean your build directory and rebuild from source
-2. Contact support@emberly.ca with the error message
+2. Contact support@embrly.ca with the error message
 
 **Check crash logs:**
 ```
@@ -643,29 +643,29 @@ Linux: Delete ~/.local/share/Flicker/history.json
 ```bash
 git clone https://github.com/EmberlyOSS/Flicker.git
 cd Flicker
-npm install  # or bun install (faster)
+bun install
 cargo build  # Compile Rust backend
 ```
 
 **Development Server:**
 ```bash
-npm run dev
+bun run dev
 # Opens Flicker in dev mode with hot reload
 ```
 
 **Building Release:**
 ```bash
-npm run build
+bun run build
 # Creates installers for your current platform
 # Outputs to src-tauri/target/release/bundle/
 ```
 
 **Platform-Specific Builds:**
 ```bash
-npm run build -- --target x86_64-unknown-linux-gnu    # Linux
-npm run build -- --target x86_64-apple-darwin          # Intel Mac
-npm run build -- --target aarch64-apple-darwin         # Apple Silicon
-npm run build -- --target x86_64-pc-windows-msvc       # Windows
+bun run build -- --target x86_64-unknown-linux-gnu    # Linux
+bun run build -- --target x86_64-apple-darwin          # Intel Mac
+bun run build -- --target aarch64-apple-darwin         # Apple Silicon
+bun run build -- --target x86_64-pc-windows-msvc       # Windows
 ```
 
 See [Contributing Guide](/docs/self-hosting/contributing) for full development setup.
@@ -705,7 +705,7 @@ We welcome contributions! See [Contributing Guide](/docs/self-hosting/contributi
 ```bash
 git clone https://github.com/EmberlyOSS/Flicker.git
 git checkout -b feature/your-feature
-npm run dev
+bun run dev
 # Make changes...
 git commit -m "feat: add your feature"
 git push origin feature/your-feature
@@ -752,8 +752,8 @@ A: Yes! Flicker integrates with Emberly Teams for shared uploads. See [Teams doc
 
 - [GitHub Discussions](https://github.com/EmberlyOSS/Flicker/discussions)
 - [Report Issues](https://github.com/EmberlyOSS/Flicker/issues)
-- [Email Support](mailto:support@emberly.ca)
-- [Official Website](https://emberly.ca)
+- [Email Support](mailto:support@embrly.ca)
+- [Official Website](https://embrly.ca)
 
 ---
 

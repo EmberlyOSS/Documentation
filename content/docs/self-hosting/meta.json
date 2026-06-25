@@ -4,7 +4,10 @@
   "pages": [
     "index",
     "development",
-    "contributing",
-    "cloudflare"
+    "production",
+    "environment",
+    "storage",
+    "cloudflare",
+    "contributing"
   ]
 }
