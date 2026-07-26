@@ -12,7 +12,7 @@ This guide takes you from a fresh account to your first programmatic upload. If 
 3. Copy your **Upload Token**
 
 <Callout type="warn" title="Keep your token private">
-  Your upload token authenticates all API requests. Treat it like a password — never commit it to source control or expose it client-side.
+  Your upload token authenticates all API requests. Treat it like a password **never commit it to source control or expose it client-side**.
 </Callout>
 
 ---
@@ -94,7 +94,7 @@ A successful upload returns:
 }
 ```
 
-The `url` field is the shareable link. Share it anywhere — anyone with the URL can view or download the file.
+The `url` field is the shareable link. Share it anywhere anyone with the URL can view or download the file.
 
 ---
 
@@ -109,7 +109,7 @@ Pass these as additional form fields:
 | `expiresAt` | ISO 8601 date | none | Auto-delete the file at this time |
 | `domain` | verified domain | your primary | Custom domain for the URL |
 
-Example — private file with a password that expires at year end:
+Example of a private file with a password that expires at year end:
 
 ```bash
 curl -X POST https://embrly.ca/api/files \
