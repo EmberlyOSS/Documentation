@@ -6,6 +6,7 @@
     "files",
     "urls",
     "domains",
+    "billing",
     "analytics",
     "profile",
     "discovery",

@@ -119,14 +119,13 @@ description: Complete feature comparison across all Emberly plans.
 | Feature | Spark | Glow | Flare | Blaze | Inferno | Ember |
 |---------|-------|------|-------|-------|---------|-------|
 | REST API | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| API rate limits | Standard | Standard | Standard | High | High | Unlimited |
 | ShareX integration | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Flameshot integration | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | PowerShell integration | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Python SDK | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Bash/cURL support | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Tauri desktop app | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Webhooks | — | — | — | — | ✓ | ✓ |
+| Flicker desktop app | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Webhooks | — | — | — | — | — | — |
 | OAuth integration | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | GitHub OAuth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Discord OAuth | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -154,9 +153,8 @@ description: Complete feature comparison across all Emberly plans.
 - ✓ — Feature included
 - ∞ — Unlimited
 - — — Not included
-- Standard — 60 requests/minute
-- High — 300 requests/minute
-- Unlimited — No rate limits
+
+The REST API has no general per-plan rate limit; a small number of security-sensitive endpoints (registration, password reset, etc.) have flat limits regardless of plan — see the [API rate limits](/docs/api/user-reference#rate-limits) reference. Outbound webhooks are not available on any plan yet — see [Webhooks](/docs/integrations/webhooks).
 
 ---
 

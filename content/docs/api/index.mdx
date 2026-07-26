@@ -58,12 +58,9 @@ Error responses:
 
 ## Rate Limits
 
-| Plan | Upload rate | API rate |
-|------|------------|---------|
-| Spark (free) | 10 req/min | 60 req/min |
-| Paid plans | Higher limits based on tier | Higher limits |
+There's no general per-plan API rate limit — file uploads, listing, and most other endpoints aren't rate-limited beyond your plan's storage/upload-size caps. A small number of security-sensitive endpoints (registration, password reset, resend-verification, contact form, domain verification) have flat, IP-scoped limits regardless of plan. See the [User API Reference](/docs/api/user-reference#rate-limits) for the full list.
 
-Exceeding limits returns `429 Too Many Requests`.
+Exceeding a limited endpoint's limit returns `429 Too Many Requests` with a `Retry-After` header.
 
 ## Status Codes
 

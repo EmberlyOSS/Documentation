@@ -147,17 +147,17 @@ setExpiry(
 ```javascript
 const { apiRequest } = require("./api");
 
-async function addCollaborator(fileId, userId, role = "VIEW") {
-  // role: "VIEW" | "EDIT"
+async function addCollaborator(fileId, userEmail, role = "EDITOR") {
+  // role: "EDITOR" | "SUGGESTER"
   const result = await apiRequest("POST", `/files/${fileId}/collaborators`, {
-    userId,
+    userEmail,
     role,
   });
   console.log("Collaborator added:", result);
   return result;
 }
 
-addCollaborator("cm7xabc123", "user_456", "EDIT");
+addCollaborator("cm7xabc123", "alice@example.com", "EDITOR");
 ```
 
 ---
@@ -489,18 +489,7 @@ except requests.HTTPError as e:
 
 ## Rate Limits
 
-| Plan | Uploads/min | API Requests/min |
-|------|------------|-----------------|
-| Spark | 10 | 60 |
-| Glow+ | Higher | Higher |
-| Enterprise | Unlimited | Unlimited |
-
-Rate limit headers:
-```
-X-RateLimit-Limit: 60
-X-RateLimit-Remaining: 55
-X-RateLimit-Reset: 1745000000
-```
+File uploads and most API endpoints aren't rate-limited by plan — only a handful of security-sensitive endpoints (registration, password reset, contact form, domain verification) have flat, IP-scoped limits. See the [User API Reference](/docs/api/user-reference#rate-limits) for the full list. A limited endpoint returns `429 Too Many Requests` with a `Retry-After` header when exceeded.
 
 ---
 

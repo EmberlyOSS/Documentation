@@ -12,8 +12,8 @@ description: Complete guide to building, developing, and contributing to Flicker
 | Aspect | Details |
 |--------|---------|
 | **Repository** | https://github.com/EmberlyOSS/Flicker |
-| **License** | MIT (Open Source) |
-| **Current Version** | v0.1.0-alpha (Jan 2, 2026) |
+| **License** | AGPL-3.0 (Open Source) |
+| **Current Version** | v0.2.0-beta |
 | **Framework** | Tauri 2.0 (Cross-platform desktop) |
 | **Frontend** | React 19 + TypeScript + Tailwind CSS |
 | **Backend** | Rust with async Tokio runtime |
@@ -148,23 +148,25 @@ cargo --version      # Should be 1.70+
 
 ```bash
 # Main development command
-bun run dev
+bun run tauri:dev
 # or
-npm run dev
+npm run tauri:dev
 
 # This:
-# 1. Starts Vite dev server on localhost:5173
+# 1. Starts Vite dev server on localhost:5173 (via beforeDevCommand)
 # 2. Compiles Rust backend
 # 3. Launches Tauri development window
 # 4. Enables hot reload for React components
 # 5. Watches Rust files for changes
 ```
 
+Plain `bun run dev` only starts the Vite frontend server on its own — it won't launch the desktop window.
+
 **First startup** may take 2-3 minutes as Rust builds. Subsequent runs are faster using incremental compilation.
 
 ### Development Window
 
-When `bun run dev` succeeds:
+When `bun run tauri:dev` succeeds:
 - Tauri window opens with Flicker app
 - Layout: 900×800 pixels (resizable)
 - DevTools available: `F12` or `Ctrl+Shift+I`
@@ -203,37 +205,38 @@ Flicker/
 
 ## Building & Packaging
 
-### Development Build
+### Production Build
 
 ```bash
-# Full build (React + Rust)
-bun run build
+# Full build (React + Rust), produces installers
+bun run tauri:build
 
 # Outputs to: src-tauri/target/release/bundle/
 ```
 
+`bun run build` on its own only runs `tsc && vite build` — the frontend type-check and bundle, with no Rust compilation or installer output. Use `bun run tauri:build` to actually produce a runnable app.
+
 ### Platform-Specific Builds
 
+Cross-compiling for a different OS than the one you're building on isn't supported (Tauri needs each platform's native webview toolchain) — each of these must run on that actual platform, which is why the project's [release workflow](https://github.com/EmberlyOSS/Flicker/blob/master/.github/workflows/release.yml) uses a matrix of Windows/macOS/Ubuntu runners:
+
 ```bash
-# Windows (requires Windows)
-npm run build -- --target x86_64-pc-windows-msvc
+# Windows (must run on Windows)
+bun run tauri:build
 
-# macOS Intel
-npm run build -- --target x86_64-apple-darwin
+# macOS Intel (must run on macOS)
+bun run tauri:build -- --target x86_64-apple-darwin
 
-# macOS Apple Silicon
-npm run build -- --target aarch64-apple-darwin
+# macOS Apple Silicon (must run on macOS)
+bun run tauri:build -- --target aarch64-apple-darwin
 
-# Linux
-npm run build -- --target x86_64-unknown-linux-gnu
-
-# Bundle all targets (takes longer)
-npm run build
+# Linux (must run on Linux)
+bun run tauri:build
 ```
 
 ### Build Artifacts
 
-After `npm run build`, installers appear in:
+After `bun run tauri:build`, installers appear in:
 
 ```
 Windows:
@@ -358,20 +361,18 @@ export const themes = {
 
 ## Testing
 
-### Unit Tests (Coming v0.2.0)
+### Unit Tests
+
+There is no test runner configured yet — `package.json` has no `test` script, and no test suite currently exists in the frontend. The snippet below is illustrative of the intended setup (Vitest + Testing Library) for when one is added, not a command you can run today.
 
 ```bash
-# Run tests
+# Not yet available:
 npm run test
-
-# Watch mode
 npm run test -- --watch
-
-# Coverage report
 npm run test -- --coverage
 ```
 
-**Test Structure:**
+**Intended test structure:**
 ```typescript
 // src/components/__tests__/MyComponent.test.tsx
 import { describe, it, expect, vi } from 'vitest';
@@ -533,9 +534,11 @@ println!("URL: {}", response.url);
 **Props:**
 ```typescript
 interface UploadAreaProps {
-  onUploadStart?: () => void;
-  onUploadComplete?: (result: UploadResult) => void;
-  onError?: (error: string) => void;
+  onUpload: (filePath: string, response: UploadResponse) => void;
+  uploadToken: string;
+  visibility: 'PUBLIC' | 'PRIVATE';
+  password?: string;
+  behavior?: BehaviorConfig; // post-upload action, clipboard format
 }
 ```
 
@@ -557,10 +560,9 @@ interface UploadAreaProps {
 **File:** `src/components/settings/SettingsPage.tsx`
 
 **Features:**
-- Tabbed interface (Hotkeys, Appearance, Behavior, Capture, Account)
+- Tabbed interface: Account, Capture, Hotkeys, Preferences (appearance/theme + sounds), About
 - Real-time config updates
 - Settings validation
-- Reset to defaults button
 
 ---
 
@@ -685,7 +687,7 @@ git checkout -b feature/my-feature
 
 **2. Make changes and test:**
 ```bash
-bun run dev
+bun run tauri:dev
 # Test thoroughly
 ```
 
@@ -737,7 +739,7 @@ Press `F12` or `Ctrl+Shift+I` to open DevTools:
 
 **See Rust logs in console:**
 ```bash
-RUST_LOG=debug bun run dev
+RUST_LOG=debug bun run tauri:dev
 ```
 
 **Add debug prints:**
@@ -752,14 +754,14 @@ eprintln!("Error: {}", error);
 ```bash
 # Restart dev server
 Ctrl+C
-bun run dev
+bun run tauri:dev
 ```
 
 **Rust compilation error:**
 ```bash
 # Clean and rebuild
-cargo clean
-bun run dev
+cd src-tauri && cargo clean && cd ..
+bun run tauri:dev
 ```
 
 **Module not found errors:**
@@ -857,15 +859,15 @@ export function Router() {
 
 ## Getting Help
 
-- [GitHub Discussions](https://github.com/EmberlyOSS/Flicker/discussions)
 - [GitHub Issues](https://github.com/EmberlyOSS/Flicker/issues)
-- [support@emberly.ca](mailto:support@emberly.ca)
+- [Discord](https://embrly.ca/discord)
+- [support@embrly.ca](mailto:support@embrly.ca)
 
 ---
 
 ## Contributing
 
-See [Contributing Guide](/docs/self-hosting/contributing) for full guidelines on:
+See the [Contributing Guide](https://github.com/EmberlyOSS/Flicker/blob/master/CONTRIBUTING.md) in the Flicker repository (separate from the main Emberly website's contributing docs) for full guidelines on:
 - Code standards and style
 - Testing requirements
 - PR process

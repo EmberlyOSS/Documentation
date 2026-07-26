@@ -328,10 +328,21 @@ List all public squads.
 Create a new squad.
 
 **Request Body:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | 3-60 characters |
+| `description` | string | No | Up to 500 characters |
+| `skills` | string[] | No | Up to 20 skill tags |
+| `maxSize` | number | No | Member cap, 2 to the squad-size limit for your plan |
+| `isPublic` | boolean | No | Whether the squad is listed publicly |
+
 ```json
 {
   "name": "Design Collective",
   "description": "A group of designers sharing assets.",
+  "skills": ["figma", "branding"],
+  "maxSize": 10,
   "isPublic": true
 }
 ```
@@ -386,7 +397,7 @@ List squad members (members only).
     {
       "userId": "user_456",
       "name": "Bob Smith",
-      "role": "EDITOR",
+      "role": "MEMBER",
       "joinedAt": "2026-04-05T00:00:00Z"
     }
   ]
@@ -406,7 +417,7 @@ Join a squad, add a member, kick a member, or change a member's role.
 
 **Add a member (owner):**
 ```json
-{ "action": "add", "userId": "user_456", "role": "EDITOR" }
+{ "action": "add", "userId": "user_456", "role": "MEMBER" }
 ```
 
 **Kick a member (owner):**
@@ -416,10 +427,10 @@ Join a squad, add a member, kick a member, or change a member's role.
 
 **Change role (owner):**
 ```json
-{ "action": "setRole", "userId": "user_456", "role": "ADMIN" }
+{ "action": "setRole", "userId": "user_456", "role": "OBSERVER" }
 ```
 
-**Available roles:** `OWNER`, `ADMIN`, `EDITOR`, `VIEWER`
+**Available roles:** `OWNER`, `MEMBER`, `OBSERVER`
 
 ---
 
@@ -521,7 +532,7 @@ Get the squad's storage quota and current usage (members only).
   "success": true,
   "data": {
     "storageUsed": 1073741824,
-    "storageQuota": 5368709120,
+    "storageQuota": 21474836480,
     "plan": "Discovery Pro"
   }
 }

@@ -53,21 +53,23 @@ Once verified, you can set the domain as your **primary** domain so all your fil
   - `Zone: Read`
   - `Custom Hostnames: Edit`
 
-### Environment Variables
+### Configuration
 
-```env
-CLOUDFLARE_ZONE_ID="your_zone_id"
-CLOUDFLARE_ZONE_API_TOKEN="your_api_token"
-CNAME_TARGET="cname.yourdomain.com"
-```
+Cloudflare credentials are **not** environment variables — they're configured in the database via **Admin Panel → Settings → Integrations → Cloudflare**:
 
-Configure a CNAME record in Cloudflare pointing `cname.yourdomain.com` to your app's hostname.
+- API token (Zone: Read, Custom Hostnames: Edit)
+- Account ID
+- Zone ID
+
+This matches how the other third-party integrations (Stripe, Resend/SMTP, object storage providers) are configured — see [Environment Variables](/docs/self-hosting/environment) for the full split between what's an env var and what's Admin Panel-configured.
+
+Also configure a CNAME record in Cloudflare pointing your chosen target hostname (e.g. `cname.yourdomain.com`) to your app's hostname — this is the value users will be told to point their own CNAME records at.
 
 ### How It Works
 
 When a user clicks **Verify** in the dashboard:
 
-1. Emberly performs a DNS lookup to confirm the CNAME points to `CNAME_TARGET`
+1. Emberly performs a DNS lookup to confirm the CNAME points to your configured target hostname
 2. If resolved, Emberly calls `createCustomHostname` on the Cloudflare Zone API
 3. Cloudflare begins SSL certificate provisioning
 4. Status is polled and persisted in `customDomain.cfMeta`

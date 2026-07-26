@@ -741,37 +741,7 @@ Get revenue metrics and statistics.
 
 **POST `/api/admin/emails/broadcast`**
 
-Send an email to multiple users.
-
-**Authentication:** SUPERADMIN only
-
-**Request Body:**
-```json
-{
-  "subject": "Important Update",
-  "body": "HTML email body here",
-  "templateId": "optional-email-template",
-  "recipients": {
-    "filter": "plan", // Filter criteria
-    "value": "spark" // Filter value
-  },
-  "dryRun": true, // Preview without sending
-  "scheduled": "2026-04-01T10:00:00Z" // Optional scheduled time
-}
-```
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": {
-    "emailId": "email_123",
-    "recipientCount": 15420,
-    "scheduled": false,
-    "status": "sent"
-  }
-}
-```
+Send an email to multiple users. Full request body and response are documented once under [Email Operations](#email-operations) further down this page — see that section for the current fields (`subject`, `body`, `priority`, `ctaLabel`, `ctaHref`, `recipientFilter`, `dryRun`).
 
 ---
 
@@ -804,41 +774,9 @@ List available email templates.
 
 ### Get Audit Log
 
-**GET `/api/admin/audit-logs`**
+**GET `/api/admin/audit/logs`**
 
-View all system activity and admin actions.
-
-**Authentication:** ADMIN+
-
-**Query Parameters:**
-- `action` — Filter by action type
-- `admin` — Filter by admin user ID
-- `target` — Filter by affected resource
-- `page` (default: 1)
-- `limit` (default: 50)
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "log_123",
-      "timestamp": "2026-03-29T15:30:00Z",
-      "admin": { "id": "admin_456", "name": "Admin Name" },
-      "action": "user_banned",
-      "targetType": "user",
-      "targetId": "user_789",
-      "targetName": "Banned User",
-      "details": {
-        "reason": "Violation",
-        "duration": "permanent"
-      },
-      "ipAddress": "192.168.1.1"
-    }
-  ]
-}
-```
+Paginated audit log of all admin and system events. Full details, including the response shape, are documented once under [Audit Logs](#audit-logs-1) further down this page.
 
 ---
 
@@ -1086,12 +1024,14 @@ Review an application.
 Paginated audit log of all admin and system events.
 
 **Query Parameters:**
-- `action` — Filter by event action type
-- `resourceType` — Filter by resource (`user`, `file`, `domain`, etc.)
-- `from` — ISO date start
-- `to` — ISO date end
+- `search` — Free-text search across actor/target email, type, action, resource, IP
+- `resource` — Filter by resource, exact match
+- `action` — Filter by action, partial match
+- `status` — `PENDING` \| `PROCESSING` \| `COMPLETED` \| `FAILED` \| `SCHEDULED`
 - `success` — `true` or `false`
-- `page`, `limit`
+- `auditableOnly` — `true` to restrict to events flagged as auditable
+- `startDate` / `endDate` — ISO date range filter
+- `page` (default: 1), `limit` (default: 20, max: 100)
 
 **Response (200):**
 ```json
@@ -1100,15 +1040,24 @@ Paginated audit log of all admin and system events.
   "data": [
     {
       "id": "evt_123",
-      "action": "user.banned",
-      "resourceType": "user",
-      "resourceId": "user_456",
-      "performedBy": "admin_789",
+      "type": "user.banned",
+      "status": "COMPLETED",
+      "action": "ban",
+      "resource": "user",
       "success": true,
-      "metadata": { "reason": "ToS violation" },
+      "error": null,
+      "payload": { "reason": "ToS violation" },
+      "metadata": { "durationDays": 30 },
+      "actorId": "admin_789",
+      "actorEmail": "admin@embrly.ca",
+      "targetId": "user_456",
+      "targetEmail": "user@example.com",
+      "ip": "192.168.1.1",
+      "userAgent": "Mozilla/5.0...",
       "createdAt": "2026-04-12T10:00:00Z"
     }
-  ]
+  ],
+  "pagination": { "total": 1, "page": 1, "limit": 20, "pageCount": 1 }
 }
 ```
 
@@ -1134,7 +1083,22 @@ Broadcast an email to a filtered set of users.
 
 `recipientFilter` values: `"all"`, `"verified"`, `"unverified"`, `"admin"`
 
-Set `dryRun: true` to see recipient count without sending.
+Set `dryRun: true` to see recipient count without sending:
+```json
+{ "success": true, "isDryRun": true, "recipientCount": 15420, "message": "Would send to 15420 recipients" }
+```
+
+Otherwise, sends in batches of 50 and returns:
+```json
+{
+  "success": true,
+  "sentTo": 15418,
+  "total": 15420,
+  "errorCount": 2,
+  "errors": ["Failed to send to bounced@example.com: ..."],
+  "message": "Sent to 15418 of 15420 recipients"
+}
+```
 
 ---
 

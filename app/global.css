@@ -5,7 +5,8 @@
 
 /* ─────────────────────────────────────────────
    Emberly — Fumadocs Theme
-   Ember-inspired dark theme with warm orange accent
+   Matches the Emberly flame mark (#8c52ff / hsl(260 100% 66%))
+   used across embrly.ca and Flicker.
 ───────────────────────────────────────────── */
 
 :root {
@@ -71,6 +72,38 @@
 /* Typography */
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ─── Glow utilities — same naming as embrly.ca / Flicker ───────────── */
+
+.glow-primary {
+  box-shadow: 0 0 24px -8px hsl(var(--primary) / 0.12);
+}
+
+.glow-primary-strong {
+  box-shadow:
+    0 0 12px -2px hsl(var(--primary) / 0.18),
+    0 0 40px -8px hsl(var(--primary) / 0.1);
+}
+
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 0%,
+    hsl(var(--primary) / 0.18),
+    transparent 70%
+  );
+}
+
+.dark .hero-glow {
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 0%,
+    hsl(var(--primary) / 0.28),
+    transparent 70%
+  );
 }
 
 /* Scrollbar */

@@ -64,23 +64,19 @@ All responses are JSON with this structure:
 
 ## Rate Limits
 
-Rate limits vary by plan:
+Rate limits are not tiered by plan — they're flat, IP-scoped limits applied to a handful of specific security-sensitive endpoints, not a general per-plan API quota:
 
-| Plan | Requests/min | Requests/hour |
-|------|------------|---------------|
-| Spark | 60 | 1,000 |
-| Glow+ | 300 | 5,000 |
-| Inferno+ | 1,000 | 10,000 |
-| Enterprise | Unlimited | Unlimited |
+| Endpoint | Limit |
+|----------|-------|
+| `POST /api/auth/register` | 5 per 60s per IP |
+| `POST /api/auth/password/forgot` | 1 per 600s per IP |
+| `POST /api/auth/password/reset` | 5 per 600s per IP |
+| `POST /api/auth/resend-verification` | 3 per 600s per IP |
+| `POST /api/contact` | 3 per 60s per IP |
+| `POST /api/auth/desktop` (failed attempts) | 2 per 600s |
+| `POST /api/domains/[id]/cf-check` | 10 per 10 minutes |
 
-Rate limit headers in response:
-```
-X-RateLimit-Limit: 1000
-X-RateLimit-Remaining: 999
-X-RateLimit-Reset: 1672531200
-```
-
-Exceeding limits returns `429 Too Many Requests`.
+Endpoints not listed here (file uploads, listing files, URL shortening, etc.) have no request-rate limit today — only the storage/upload-size caps for your plan apply. On the limited endpoints above, a `429 Too Many Requests` is returned with a `Retry-After` header (seconds until the limit resets).
 
 ---
 
@@ -256,9 +252,9 @@ List all your uploaded files with pagination and filtering.
   ],
   "pagination": {
     "page": 1,
-    "limit": 50,
+    "limit": 24,
     "total": 240,
-    "totalPages": 5
+    "totalPages": 10
   }
 }
 ```
@@ -359,13 +355,13 @@ List users with access to the file.
 
 **POST `/api/files/[id]/collaborators`**
 
-Add a collaborator to a file.
+Add a collaborator to a file. Provide either `userEmail` or `userUrlId` to identify the person.
 
 **Request Body:**
 ```json
 {
-  "email": "alice@example.com",
-  "role": "VIEW" // or "EDIT"
+  "userEmail": "alice@example.com",
+  "role": "EDITOR" // or "SUGGESTER" (default: EDITOR)
 }
 ```
 
@@ -744,7 +740,7 @@ List all squads you're a member of.
       "description": "Our design crew",
       "image": "https://squad-avatar.com/...",
       "memberCount": 5,
-      "role": "ADMIN",
+      "role": "MEMBER",
       "createdAt": "2026-01-15T10:00:00Z"
     }
   ]
@@ -764,8 +760,9 @@ Create a new squad/team.
 {
   "name": "Product Team",
   "description": "Our product team",
-  "image": "https://image-url.com/...",
-  "size": "small" // "small" (1-5), "medium" (5-20), "large" (20+)
+  "skills": ["product", "strategy"],
+  "maxSize": 10, // 2 up to your plan's squad-size limit
+  "isPublic": true
 }
 ```
 
@@ -789,9 +786,13 @@ Invite someone to join the squad.
 ```json
 {
   "email": "newmember@example.com",
-  "role": "MEMBER" // or "ADMIN"
+  "role": "MEMBER" // or "OBSERVER"
 }
 ```
+
+<Callout type="info">
+  Squad roles are `OWNER`, `MEMBER`, and `OBSERVER` — there is no separate `ADMIN` or `EDITOR` squad role.
+</Callout>
 
 **Response (201):**
 ```json
@@ -820,7 +821,7 @@ List all members of a squad.
     {
       "id": "member_123",
       "user": { "id": "user_456", "name": "Alice", "email": "alice@example.com" },
-      "role": "ADMIN",
+      "role": "MEMBER",
       "joinedAt": "2026-01-15T10:00:00Z"
     }
   ]
@@ -831,67 +832,7 @@ List all members of a squad.
 
 ## Shortened URLs
 
-### Create Short URL
-
-**POST `/api/shorturl`**
-
-Create a shortened URL.
-
-**Request Body:**
-```json
-{
-  "url": "https://example.com/very/long/url",
-  "slug": "optional-custom-slug",
-  "password": "optional-password"
-}
-```
-
-**Response (201):**
-```json
-{
-  "success": true,
-  "data": {
-    "id": "short_123",
-    "slug": "mylink",
-    "shortUrl": "https://embrly.ca/mylink",
-    "targetUrl": "https://example.com/very/long/url",
-    "clicks": 0,
-    "createdAt": "2026-03-29T15:30:00Z"
-  }
-}
-```
-
----
-
-### List Short URLs
-
-**GET `/api/shorturl`**
-
-List all your shortened URLs.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "data": [ ... array of shortened URLs ... ]
-}
-```
-
----
-
-### Delete Short URL
-
-**DELETE `/api/shorturl/[id]`**
-
-Delete a shortened URL.
-
-**Response (200):**
-```json
-{
-  "success": true,
-  "message": "Short URL deleted"
-}
-```
+URL shortening is documented on its own page: see [URL Shortener API](/docs/api/urls). It lives at `/api/urls` (not `/api/shorturl`), the request body is just `{ "url": "..." }`, short codes are auto-generated (6-character, no custom/vanity slug support), and there's no password option on shortened URLs.
 
 ---
 
