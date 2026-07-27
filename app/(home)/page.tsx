@@ -86,18 +86,18 @@ export default function HomePage() {
 
       {/* Hero */}
       <div className="mb-20 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-xs font-medium tracking-wide uppercase border rounded-full border-fd-border text-fd-muted-foreground">
-          Open Source · File Sharing · Self-hostable
+        <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 text-xs font-medium tracking-wide uppercase border rounded-full border-fd-border text-fd-muted-foreground bg-fd-card">
+          Open Source & Self-hostable File Sharing
         </div>
         <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-6xl text-fd-foreground">
           Emberly{' '}
-          <span className="bg-gradient-to-r from-fd-primary to-fd-primary/60 bg-clip-text text-transparent">
+          <span className="text-transparent bg-gradient-to-r from-fd-primary to-fd-primary/60 bg-clip-text">
             Documentation
           </span>
         </h1>
         <p className="max-w-2xl mx-auto text-lg leading-relaxed text-fd-muted-foreground">
-          Everything you need to upload, share, and manage files — from quick screenshots to
-          large documents — with custom domains, teams, and full API access.
+          Everything you need to upload, share, and manage files from quick screenshots to
+          large documents with custom domains, teams, and full API access.
         </p>
         <div className="flex flex-wrap justify-center gap-3 mt-8">
           <Link
@@ -153,7 +153,7 @@ export default function HomePage() {
       </div>
 
       {/* Quick links row */}
-      <div className="pt-8 mt-14 border-t border-fd-border">
+      <div className="pt-8 border-t mt-14 border-fd-border">
         <p className="mb-4 text-xs font-medium tracking-wide uppercase text-fd-muted-foreground">
           Quick links
         </p>

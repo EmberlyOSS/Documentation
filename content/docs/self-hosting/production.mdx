@@ -39,7 +39,7 @@ bun install
 cp .env.template .env
 ```
 
-Edit `.env` with your database/Redis connection strings, `NEXTAUTH_URL`/`NEXT_PUBLIC_BASE_URL` (your domain), a generated `NEXTAUTH_SECRET`, and OAuth credentials. See [Environment Variables](/docs/self-hosting/environment) for the full reference — most third-party integrations (Stripe, storage, email, Cloudflare) are configured later via the Admin Panel, not `.env`.
+Edit `.env` with your database/Redis connection strings, `NEXTAUTH_URL`/`NEXT_PUBLIC_BASE_URL` (your domain), a generated `NEXTAUTH_SECRET`, and OAuth credentials. See [Environment Variables](/docs/self-hosting/environment) for the full reference — storage and email are configured later via the Admin Panel, not `.env`.
 
 ```bash
 openssl rand -base64 32   # generate NEXTAUTH_SECRET
@@ -112,7 +112,7 @@ sudo systemctl enable --now emberly emberly-worker
 sudo systemctl status emberly emberly-worker
 ```
 
-The app listens on port 3000 by default. Open `http://YOUR_SERVER_IP:3000` and complete the **Setup Wizard** to create your admin account.
+The app listens on port 3000 by default. Open `http://YOUR_SERVER_IP:3000` and complete the **Setup Wizard** to create your admin account — see [First-Time Setup](/docs/self-hosting/first-time-setup) for a step-by-step walkthrough.
 
 ---
 
@@ -169,7 +169,7 @@ sudo certbot --nginx -d yourdomain.com
 
 ## Step 7: Configure Storage
 
-After the setup wizard completes, configure S3-compatible storage in **Admin Panel → Settings → Integrations → Storage**:
+You already chose local or S3-compatible storage during the Setup Wizard's Storage step (see [First-Time Setup](/docs/self-hosting/first-time-setup)). To switch providers later, or fill in the public URL and other advanced fields, go to **Admin Panel → Settings → Integrations → Storage**:
 
 | Field | Description |
 |-------|-------------|
@@ -209,9 +209,7 @@ Configure these in the Admin Panel as needed:
 
 | Integration | Purpose |
 |-------------|---------|
-| Stripe | Billing and subscription plans |
 | VirusTotal | File malware scanning (skipped for images/video/audio) |
-| Cloudflare | Custom domain TLS provisioning |
 | Sentry | Error tracking |
 
 ---
@@ -228,6 +226,34 @@ sudo systemctl restart emberly emberly-worker
 ```
 
 Always run migrations before restarting the app on an update.
+
+---
+
+## Health Checks
+
+`GET /api/health` reports the status of your instance — database, Redis, storage (a real write/delete round-trip, cached for 30 seconds), and the event queue. No authentication required. Point an uptime monitor or your reverse proxy's health check at it.
+
+**Response (200 or 503):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ok",
+    "version": "2.5.1",
+    "uptimeSeconds": 3600,
+    "checks": {
+      "database": { "status": "up", "latencyMs": 4 },
+      "redis": { "status": "up", "latencyMs": 1 },
+      "storage": { "status": "up", "provider": "s3", "latencyMs": 120, "checkedAt": "..." },
+      "virusScanning": { "status": "not_configured" },
+      "eventQueue": { "status": "up", "workerRunning": true, "waiting": 0, "active": 0 }
+    }
+  }
+}
+```
+
+`status` is `ok`, `degraded` (a non-critical check is failing), or `down` (the database is unreachable — responds with HTTP `503` in that case).
 
 ---
 
@@ -252,4 +278,3 @@ Also back up your S3 bucket. Use your provider's snapshot or bucket replication 
 | Background jobs not processing (OCR, VirusTotal scans) | Confirm `emberly-worker.service` is running — it's a separate process, not automatic in production |
 | Uploads fail | Check storage configuration in Admin Panel; verify bucket permissions and public URL |
 | Email not sending | Verify Resend API key or SMTP credentials in Admin Panel |
-| Custom domains not working | See [Cloudflare Setup](/docs/self-hosting/cloudflare) |

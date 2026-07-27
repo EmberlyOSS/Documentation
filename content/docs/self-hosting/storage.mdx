@@ -9,58 +9,26 @@ Emberly stores all uploaded files in S3-compatible object storage. You can use a
 
 ## Choosing a Provider
 
+Emberly's storage layer speaks the S3 API directly — any of these work as long as you can supply an endpoint, bucket name, region, and access keys. There's no built-in auto-provisioning for self-hosted instances; you create the bucket yourself with your provider, then enter its credentials in the Admin Panel.
+
 | Provider | Best for | Notes |
 |----------|---------|-------|
-| **MinIO** (self-hosted) | Air-gapped or fully self-contained installs | Runs alongside the app, no cloud accounts needed |
+| **MinIO** (self-hosted) | Air-gapped or fully self-contained installs | Run it as its own service (systemd, or however you deploy it) — no cloud account needed |
 | **AWS S3** | Production with existing AWS infrastructure | Reliable, well-documented, generous free tier |
 | **Cloudflare R2** | Zero egress costs, global CDN | No egress fees; requires Cloudflare account |
-| **Vultr Object Storage** | Cost-effective cloud storage | Managed via Admin Panel provisioning |
-| **Linode / Akamai** | Linode-hosted apps | Managed via Admin Panel provisioning |
+| **Vultr Object Storage** | Cost-effective, S3-compatible | Create the bucket in the Vultr dashboard, then enter its keys manually — the automatic multi-bucket provisioning UI is a cloud-only feature |
+| **Linode / Akamai** | Linode-hosted apps | Same as Vultr — manual bucket + keys, no auto-provisioning for self-hosted |
 | **Tigris** | Globally distributed S3 | Good Fly.io companion |
 
 ---
 
 ## MinIO (Self-Hosted)
 
-MinIO is the easiest way to run a fully self-contained Emberly instance without any external dependencies.
-
-### Add MinIO to Docker Compose
-
-Add this service to your `docker-compose.yml`:
-
-```yaml
-services:
-  minio:
-    image: minio/minio:latest
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin   # change this
-    ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Web console
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-volumes:
-  minio_data:
-```
-
-Start MinIO:
-
-```bash
-docker compose up -d minio
-```
+MinIO is the easiest way to run a fully self-contained Emberly instance without any external cloud dependencies. Install and run it as its own service — see [MinIO's installation docs](https://min.io/docs/minio/linux/index.html) for the current install steps on your OS; there's no bundled Docker Compose setup in the Emberly repo, so if you containerize MinIO yourself you'll manage that separately from the app.
 
 ### Create a Bucket
 
-Open the MinIO console at `http://localhost:9001` and log in with your `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD`. Then:
+Once MinIO is running, open its console (default `http://localhost:9001`) and log in with your root user/password. Then:
 
 1. Click **Buckets → Create Bucket**
 2. Name it `emberly`
@@ -69,9 +37,9 @@ Open the MinIO console at `http://localhost:9001` and log in with your `MINIO_RO
 Or use the `mc` CLI:
 
 ```bash
-docker compose exec minio mc alias set local http://localhost:9000 minioadmin minioadmin
-docker compose exec minio mc mb local/emberly
-docker compose exec minio mc anonymous set download local/emberly
+mc alias set local http://localhost:9000 <root-user> <root-password>
+mc mb local/emberly
+mc anonymous set download local/emberly
 ```
 
 The last command makes the bucket publicly readable, which is required for Emberly's public file URLs to work.
@@ -82,15 +50,15 @@ In **Admin Panel → Settings → Integrations → Storage**, set:
 
 | Field | Value |
 |-------|-------|
-| Endpoint | `http://minio:9000` (using Docker service name) |
+| Endpoint | Your MinIO server's address, e.g. `http://localhost:9000` |
 | Bucket name | `emberly` |
 | Region | `us-east-1` (MinIO accepts any value) |
-| Access key ID | `minioadmin` |
-| Secret access key | `minioadmin` |
-| Public files URL | `http://localhost:9000/emberly` |
+| Access key ID | Your MinIO access key |
+| Secret access key | Your MinIO secret key |
+| Public files URL | A publicly reachable URL for the bucket |
 
 <Callout type="info" title="Public files URL in production">
-  For production use, `Public files URL` must be a publicly accessible URL — not `localhost`. Put MinIO behind a reverse proxy (Nginx or Caddy) on a real domain, e.g. `https://files.yourdomain.com`, and use that as the public URL.
+  `Public files URL` must be a publicly accessible URL — not `localhost`. Put MinIO behind a reverse proxy (Nginx or Caddy) on a real domain, e.g. `https://files.yourdomain.com`, and use that as the public URL.
 </Callout>
 
 ### MinIO Behind a Reverse Proxy
@@ -101,7 +69,7 @@ To serve MinIO files from a real domain, add a Caddy or Nginx block alongside yo
 
 ```
 files.yourdomain.com {
-    reverse_proxy minio:9000
+    reverse_proxy localhost:9000
 }
 ```
 
@@ -113,7 +81,7 @@ server {
     server_name files.yourdomain.com;
 
     location / {
-        proxy_pass http://minio:9000;
+        proxy_pass http://localhost:9000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         client_max_body_size 0;

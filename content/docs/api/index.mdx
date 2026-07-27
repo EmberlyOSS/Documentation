@@ -8,13 +8,38 @@ The Emberly REST API lets you upload files, shorten URLs, manage metadata, and c
 <Cards>
   <Card title="Files API" description="Upload, update, delete, and serve files." href="/docs/api/files" />
   <Card title="URL Shortener API" description="Create and manage short links." href="/docs/api/urls" />
-  <Card title="Domains API" description="Manage custom domains for your uploads." href="/docs/api/domains" />
+  <Card title="Domains API (Cloud only)" description="Manage custom domains for your uploads." href="/docs/api/domains" />
+  <Card title="Billing API (Cloud only)" description="Checkout, portal, purchases, and subscription sync." href="/docs/api/billing" />
   <Card title="Analytics API" description="Storage stats, top files, and activity data." href="/docs/api/analytics" />
   <Card title="Profile API" description="Manage security, tokens, linked accounts, and perks." href="/docs/api/profile" />
-  <Card title="Discovery API" description="Nexium profiles, squads, opportunities, and applications." href="/docs/api/discovery" />
+  <Card title="Discovery API (Cloud only)" description="Nexium profiles, squads, opportunities, and applications." href="/docs/api/discovery" />
   <Card title="User API Reference" description="Comprehensive reference for all user-facing endpoints." href="/docs/api/user-reference" />
   <Card title="Staff & Admin API" description="Admin-only endpoints for user management and moderation." href="/docs/api/staff-admin-reference" />
 </Cards>
+
+## Health Check
+
+`GET /api/health` — works identically on cloud and self-hosted instances, no authentication required. Reports database, Redis, storage, and event-queue status, plus overall instance uptime and version:
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ok",
+    "version": "2.5.1",
+    "uptimeSeconds": 3600,
+    "checks": {
+      "database": { "status": "up", "latencyMs": 4 },
+      "redis": { "status": "up", "latencyMs": 1 },
+      "storage": { "status": "up", "provider": "s3", "latencyMs": 120 },
+      "virusScanning": { "status": "not_configured" },
+      "eventQueue": { "status": "up", "workerRunning": true }
+    }
+  }
+}
+```
+
+`status` is `ok`, `degraded` (a non-critical check failing), or `down` (database unreachable — responds `503`). Point an uptime monitor or reverse-proxy health check at this endpoint.
 
 ## Base URL
 

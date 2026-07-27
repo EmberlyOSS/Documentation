@@ -68,8 +68,7 @@ Create a Discord application at [discord.com/developers/applications](https://di
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `EMBERLY_RUN_CLOUD` | `false` | Enables cloud-specific features (marketing pages, managed billing UI). Set to `false` for self-hosted instances. |
-| `EMBERLY_RUN_EVENT_WORKER` | `false` | Runs the background event worker in-process. Set to `true` to enable async jobs (OCR, email, bucket provisioning). |
+| `EMBERLY_RUN_EVENT_WORKER` | `false` | Runs the background event worker in-process. Set to `true` to enable async jobs (OCR, email). |
 
 <Callout type="info">
   In production, set `EMBERLY_RUN_EVENT_WORKER=true` so that background jobs (OCR, expiration emails, storage bucket provisioning) actually run. Without it, uploads still work but async processing is skipped.
@@ -107,10 +106,7 @@ The following are **not** environment variables. They are configured after the a
 | Integration | Configured in Admin Panel |
 |-------------|--------------------------|
 | S3 / Object storage | Provider, bucket name, endpoint, access keys, public URL |
-| Stripe | Secret key, webhook secret, price IDs |
 | Resend / SMTP email | API key, from address, SMTP credentials |
-| Cloudflare | Zone ID, API token, CNAME target |
-| Storage pools (Vultr, Linode, OVHcloud) | API keys, pool configuration |
 
 This means you do not need to restart the application to change integrations — they update live from the database.
 
@@ -122,7 +118,6 @@ This means you do not need to restart the application to change integrations —
 |----------|------------|-----------|
 | `NEXTAUTH_URL` | `http://localhost:3000` | `https://yourdomain.com` |
 | `NEXT_PUBLIC_BASE_URL` | `http://localhost:3000` | `https://yourdomain.com` |
-| `EMBERLY_RUN_CLOUD` | `false` | `false` (unless you are running the managed cloud service) |
 | `EMBERLY_RUN_EVENT_WORKER` | optional | `true` |
 | `VIRUSTOTAL_API_KEY` | optional | recommended |
 
@@ -144,7 +139,6 @@ GITHUB_OAUTH_CLIENT_SECRET="..."
 DISCORD_OAUTH_CLIENT_ID="..."
 DISCORD_OAUTH_CLIENT_SECRET="..."
 
-EMBERLY_RUN_CLOUD=false
 EMBERLY_RUN_EVENT_WORKER=true
 
 VIRUSTOTAL_API_KEY="..."

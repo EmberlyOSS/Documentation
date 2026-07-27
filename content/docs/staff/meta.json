@@ -6,6 +6,7 @@
     "index",
     "moderation",
     "support",
-    "incidents"
+    "incidents",
+    "cloudflare-domains"
   ]
 }

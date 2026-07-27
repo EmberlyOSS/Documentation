@@ -4,7 +4,10 @@ description: Create checkout/portal sessions and manage subscriptions via the Em
 ---
 
 <Callout type="warn">
-  All billing endpoints require a **session cookie** (authenticated browser session), not an upload token. These power the dashboard's upgrade/billing flows and aren't intended for external integrations. Every endpoint also requires Stripe to be configured on the server — if it isn't, they return `501` (or `503` for sync) instead of processing anything.
+  **Cloud only.** Billing runs on embrly.ca and these endpoints return `404` on self-hosted instances see [Cloud vs. Self-Hosted](/docs/self-hosting/cloud-vs-self-hosted). 
+  
+  * Requires a **session cookie** (authenticated browser session), not an upload token these power the dashboard's upgrade/billing flows and aren't intended for external integrations. 
+  * Requires Stripe to be configured on the server if it isn't, they return `501` (or `503` for sync) instead of processing anything.
 </Callout>
 
 ## Endpoints
@@ -135,4 +138,4 @@ If you have no linked Stripe customer yet, it responds with `{ "synced": 0, "mes
 
 ## Webhook
 
-`POST /api/payments/webhook` receives Stripe webhook events (checkout completion, subscription updates/cancellations, invoice events) and is called by Stripe directly, not by clients — it's listed here for completeness only. Configure the endpoint URL and signing secret in your Stripe dashboard when self-hosting; see [Self-Hosting](/docs/self-hosting).
+`POST /api/payments/webhook` receives Stripe webhook events (checkout completion, subscription updates/cancellations, invoice events) and is called by Stripe directly, not by clients — it's listed here for completeness only.
